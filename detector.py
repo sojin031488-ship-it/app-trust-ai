@@ -118,7 +118,6 @@ def llm_judge(sample):
     except Exception:
         return None
 
-
 # ---------- AI 심사 요약 (선택: ANTHROPIC_API_KEY 필요) ----------
 def llm_summary(out, name):
     """도구가 이미 찾은 근거와 점수만 읽고 심사자용 요약과 '개발자에게 물어볼 질문'을 만든다.
@@ -172,9 +171,9 @@ def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
     # 수정: 증거(signals)가 하나도 없으면 '직접 제작'이라고 단정하지 않고 판단 보류
     hold = (conf == "낮음" or not sigs) and not strong
     if hold: verdict = "판단 보류 (근거 부족)"
-    elif ai >= 70: verdict = "AI 활용 흔적 많음 (확인 권장)"
-    elif ai >= 40: verdict = "AI 활용 흔적 일부 (혼합)"
-    else: verdict = "직접 제작 가능성 높음"
+    elif ai >= 70: verdict = "AI 도구 사용 가능성 높음 (바이브코딩 의심)"
+    elif ai >= 40: verdict = "AI 보조 개발 가능성 (혼합)"
+    else: verdict = "개발자 직접 제작 가능성 높음"
     q = qual if qual is not None else 50
     if hold: triage = "근거 부족 → 심사자가 직접 확인"
     elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
