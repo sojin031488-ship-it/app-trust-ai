@@ -150,18 +150,18 @@ def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
     else: verdict = "개발자 직접 제작 가능성 높음"
     q = qual if qual is not None else 50
     if hold: triage = "근거 부족 → 심사자가 직접 확인"
-    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
-    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 심사 우선"
-    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 통과"
-    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 요청"
+    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 검토"
+    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 검토 우선"
+    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 검토"
+    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 확인"
     flag = None
-    if declared_ai is False and (strong or ai >= 65): flag = "AI 사용 미공개로 신고했으나 AI 흔적이 발견됨 → 소명 요청 권고"
-    elif declared_ai is True and ai < 40: flag = "AI 사용을 공개했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
+    if declared_ai is False and (strong or ai >= 65): flag = "AI 미사용으로 신고했으나 AI 흔적이 발견됨 → 참가자 소명 요청 권고"
+    elif declared_ai is True and ai < 40: flag = "AI 사용을 신고했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
     return {"ai_score": ai, "quality_score": qual, "confidence": conf, "verdict": verdict, "triage": triage,
             "priority": round(ai * (100 - q) / 100), "declaration_flag": flag,
             "signals": sorted(sigs, key=lambda s: -PTS[s["strength"]]),
             "quality_checks": [{"label": l, "ok": ok} for l, ok, _ in checks],
-            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 개발자 소명을 받으세요."}
+            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 참가자 소명을 받으세요."}
 
 
 # ---------- 스토어 메타데이터 / 웹 리서치 증거 ----------
