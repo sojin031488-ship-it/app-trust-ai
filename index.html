@@ -3,596 +3,2212 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>APP TRUST AI · AI 시대에 앱의 개발 방식과 기술적 완성도, 신뢰 정보를 확인하고 고르도록 돕는 앱 정보 분석 서비스</title>
-<meta name="description" content="AI 시대에 앱의 개발 방식과 기술적 완성도, 신뢰 정보를 확인하고 고르도록 돕는 앱 정보 분석 서비스. AI를 썼다는 이유만으로 앱의 품질을 낮게 평가하지 않습니다.">
-<meta property="og:type" content="website">
-<meta property="og:title" content="APP TRUST AI · AI 시대에 앱의 개발 방식과 기술적 완성도, 신뢰 정보를 확인하고 고르도록 돕는 앱 정보 분석 서비스">
-<meta property="og:description" content="앱 이름만 넣으면 공개 정보에서 개발 방식, 기술적 완성도, 신뢰 관련 정보를 근거와 함께 보여 줍니다. AI를 썼다는 이유만으로 낮게 평가하지 않아요.">
-<meta name="theme-color" content="#111111">
+
+<title>APP TRUST AI · 앱 신뢰 정보 분석</title>
+<meta name="description" content="공개 근거 기반 개발 방식·완성도 분석">
+
 <style>
-:root{--ink:#111111;--sub:#6b6b6b;--line:#e5e5e5;--acc:#111111;--acc2:#333333;--bg:#f5f5f5;--ai:#111111;--hu:#111111}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,'Apple SD Gothic Neo','Nanum Gothic',sans-serif;line-height:1.6}
-a{color:var(--acc)}
-.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
-nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
-nav b{font-size:19px;letter-spacing:.5px}
-nav a{text-decoration:none;font-weight:600;font-size:14px}
-.hero{background:linear-gradient(135deg,#0a0a0a 0%,#1f1f1f 60%,#3a3a3a 100%);color:#fff;border-radius:0 0 36px 36px}
-.hero .wrap{padding-bottom:64px;max-width:820px}
-.hero nav a,.hero nav b{color:#fff}
-.hero h1{font-size:40px;line-height:1.25;margin:18px 0 12px}
-.hero p{color:#d4d4d4;font-size:17px;margin:0 0 22px}
-.art .ph{display:flex;gap:18px;justify-content:center;align-items:center;font-size:64px;background:rgba(255,255,255,.12);border-radius:22px;padding:40px 20px}
-.pill{display:inline-block;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;font-size:13px;margin-right:6px}
-.cta{display:inline-block;background:#fff;color:var(--acc);font-weight:700;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:16px}
-@media(max-width:780px){.hero .wrap{grid-template-columns:1fr}.hero h1{font-size:30px}}
+:root {
+  --ink:#173039;
+  --sub:#526870;
+  --line:#d9e5e7;
+  --acc:#0e6674;
+  --bg:#f4f8f9;
+}
 
-.finder{margin-top:-34px;position:relative}
-.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)}
-.finder .row{display:flex;gap:10px;flex-wrap:wrap}
-.finder input[type=text]{flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:17px}
-.finder input:focus,select:focus{outline:3px solid #bdbdbd;border-color:var(--acc2)}
-button{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer}
-button:disabled{opacity:.6;cursor:wait}
-button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;font-size:14px;font-weight:600}
-.adv-toggle{background:none;color:var(--acc);padding:10px 0 0;font-size:14px;font-weight:600}
-#adv{display:none;margin-top:12px;padding-top:14px;border-top:1px dashed var(--line)}
-#adv.on{display:block}
-#adv .g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:640px){#adv .g{grid-template-columns:1fr}}
-label{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
-#adv input,select{width:100%;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px;font-size:15px}
-.hint{font-size:12.5px;color:var(--sub);margin:4px 0 0}
-.progress{display:none;align-items:center;gap:12px;color:var(--sub)}
-.progress.on{display:flex}
-.spin{width:22px;height:22px;border:3px solid #dddddd;border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
-@keyframes s{to{transform:rotate(360deg)}}
+* {
+  box-sizing:border-box;
+}
 
-.scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:16px 0}
-.score{border:1px solid var(--line);border-left:5px solid #111;border-radius:6px;padding:16px;text-align:left;background:#fafafa}
-.meter{height:14px;background:#e5e5e5;border-radius:3px;overflow:hidden;margin:10px 0 6px}
-.meter b{display:block;height:100%;background:var(--c,#111)}
-.num{font-size:34px;font-weight:800;line-height:1;text-align:left}
-.score span{font-size:13px;color:var(--sub)}
-.big{font-size:21px;font-weight:800;margin:4px 0}
-.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;font-size:14px;background:#eeeeee;color:var(--acc)}
-.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px}
-.t-ai{background:#111;color:#fff}.t-human{background:#d9d9d9;color:#111}
-.t-strong{background:#111;color:#fff}.t-medium{background:#bdbdbd;color:#111}.t-weak{background:#ececec;color:#6b6b6b}
-.flag{background:#f0f0f0;border:1px solid #bdbdbd;color:#111;padding:11px 13px;border-radius:12px;margin:12px 0}
-ul{padding-left:18px;margin:6px 0}li{margin:6px 0}
-.ok{color:#111}.no{color:#8a8a8a}
-.small{font-size:13px;color:var(--sub)}
-.err{background:#f0f0f0;border:1px solid #9a9a9a;color:#111;padding:14px;border-radius:12px}
-h2{font-size:19px;margin:0 0 10px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:780px){.two{grid-template-columns:1fr}}
+body {
+  margin:0;
+  color:var(--ink);
+  background:var(--bg);
+  font-family:system-ui,'Apple SD Gothic Neo',sans-serif;
+  line-height:1.65;
+}
 
-section.info{padding:46px 0 10px}
-section.info h2.t{font-size:26px;text-align:center;margin-bottom:6px}
-section.info .lead{text-align:center;color:var(--sub);margin:0 0 26px}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}
-.step .n{width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800;margin-bottom:10px}
-.step h3{margin:0 0 6px;font-size:17px}.step p{margin:0;color:var(--sub);font-size:14.5px}
-.split{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;margin:40px 0}
-.art2{font-size:110px;text-align:center;background:#eeeeee;border-radius:22px;padding:30px}
-.split h2{font-size:24px}
-.split li{color:var(--sub)}
-@media(max-width:780px){.split{grid-template-columns:1fr}}
-.triage{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-.tr{border-radius:16px;padding:16px;font-size:14.5px}
-.tr b{display:block;font-size:16px;margin-bottom:4px}
-.g1{background:#fff;border:1px solid #e5e5e5}.g2{background:#eeeeee}.g3{background:#d9d9d9}.g4{background:#111;color:#fff}
-table.mx{border-collapse:collapse;font-size:13px;margin:8px 0}
-table.mx th,table.mx td{border:1px solid #e5e5e5;padding:6px 12px;text-align:center}
-table.mx th{background:#f5f5f5}
-.acc{font-size:34px;font-weight:800}
-footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
-/* ---- 앱 제출 / 제출 심사 ---- */
-.hero nav .links a{margin-left:14px;opacity:.9}
-.sf .g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.sf .full{grid-column:1/-1}
-@media(max-width:640px){.sf .g{grid-template-columns:1fr}}
-.sf input,.sf select,.sf textarea{width:100%;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px;font-size:15px;font-family:inherit}
-.sf textarea{min-height:84px;resize:vertical}
-.req{color:#111;font-weight:800}
-.codebox{font-family:ui-monospace,Consolas,monospace;font-size:17px;background:#111;color:#fff;padding:12px 14px;border-radius:10px;word-break:break-all;margin:8px 0}
-.crit{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:10px 0}
-.crit .score ul{font-size:13.5px}
-.na{color:#a0a0a0}
-.rev{border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0;background:#fafafa}
-.rev .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.rev input{flex:1;min-width:180px}
+a {
+  color:var(--acc);
+}
+
+button,input,select,textarea {
+  font:inherit;
+}
+
+button {
+  cursor:pointer;
+  border:1px solid var(--acc);
+  border-radius:10px;
+  padding:10px 16px;
+  background:var(--acc);
+  color:white;
+  font-weight:700;
+}
+
+button:disabled {
+  opacity:.55;
+  cursor:wait;
+}
+
+button.ghost {
+  background:white;
+  color:var(--acc);
+}
+
+input,select,textarea {
+  width:100%;
+  border:1px solid #9fb5bc;
+  border-radius:9px;
+  background:white;
+  padding:11px;
+  color:var(--ink);
+}
+
+textarea {
+  resize:vertical;
+}
+
+label {
+  display:block;
+  font-weight:650;
+  margin-bottom:5px;
+}
+
+input[type=checkbox] {
+  width:auto;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline:3px solid #bc761e;
+  outline-offset:3px;
+}
+
+[hidden] {
+  display:none!important;
+}
+
+.wrap {
+  max-width:1050px;
+  margin:auto;
+  padding:0 20px;
+}
+
+/* 상단 소개 */
+.hero {
+  background:#123e48;
+  color:white;
+  padding:28px 0 34px;
+}
+
+.brand {
+  font-size:18px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+
+.hero h1 {
+  margin:24px 0 8px;
+  font-size:36px;
+  line-height:1.3;
+  letter-spacing:-1px;
+}
+
+.hero p {
+  margin:0;
+  color:#deedef;
+  font-size:16px;
+}
+
+/* 사용자별 탭 */
+.row,.tabs {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.tabs {
+  margin:20px 0;
+}
+
+.tabs button {
+  background:white;
+  color:var(--acc);
+}
+
+.tabs button[aria-pressed=true] {
+  background:var(--acc);
+  color:white;
+}
+
+.card {
+  background:white;
+  border:1px solid var(--line);
+  border-radius:15px;
+  padding:22px;
+  margin:16px 0;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+.row>input {
+  flex:1;
+  min-width:180px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+
+.full {
+  grid-column:1/-1;
+}
+
+.small {
+  font-size:13px;
+  color:var(--sub);
+}
+
+h2 {
+  font-size:21px;
+  margin:0 0 10px;
+}
+
+h3 {
+  font-size:17px;
+}
+
+.notice,.error {
+  padding:12px;
+  border-radius:9px;
+  margin:12px 0;
+}
+
+.notice {
+  background:#fff8e9;
+  border:1px solid #d9c491;
+  color:#64491a;
+}
+
+.error {
+  background:#fff1f0;
+  border:1px solid #c78882;
+  color:#852b24;
+}
+
+/* 분석 점수 */
+.scores {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+
+.score {
+  padding:15px;
+  border-left:4px solid var(--acc);
+  background:#f1f7f8;
+}
+
+.num {
+  font-size:28px;
+  font-weight:800;
+}
+
+.meter {
+  height:9px;
+  background:#dce8eb;
+  border-radius:6px;
+  overflow:hidden;
+  margin:8px 0;
+}
+
+.meter i {
+  display:block;
+  height:100%;
+  background:var(--acc);
+}
+
+.tag {
+  display:inline-block;
+  border-radius:5px;
+  font-size:12px;
+  padding:2px 8px;
+  margin:2px 5px 2px 0;
+}
+
+.strong {
+  background:#145a65;
+  color:white;
+}
+
+.medium {
+  background:#dcecef;
+  color:#17434c;
+}
+
+.weak {
+  background:#f0f4f5;
+  color:#455d65;
+  border:1px dashed #8a9fa5;
+}
+
+.badge {
+  display:inline-block;
+  padding:4px 10px;
+  background:#e4f1f3;
+  color:#124b55;
+  border-radius:20px;
+  font-size:13px;
+}
+
+/* 표 */
+.table-wrap {
+  overflow-x:auto;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+
+th,td {
+  padding:9px;
+  border:1px solid var(--line);
+  text-align:left;
+  vertical-align:top;
+}
+
+th {
+  background:#f1f6f7;
+}
+
+/* 스토어 결과 */
+.store-item {
+  display:flex;
+  gap:14px;
+  padding:16px 0;
+  border-bottom:1px solid var(--line);
+}
+
+.store-item img {
+  width:56px;
+  height:56px;
+  object-fit:cover;
+  border-radius:12px;
+}
+
+.store-item>div {
+  min-width:0;
+  flex:1;
+}
+
+/* 수정 요청 */
+.request {
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  margin:12px 0;
+}
+
+.request.open {
+  border-left:4px solid var(--acc);
+}
+
+details {
+  margin:14px 0;
+}
+
+summary {
+  cursor:pointer;
+  color:var(--acc);
+  font-weight:650;
+}
+
+footer {
+  text-align:center;
+  font-size:13px;
+  color:var(--sub);
+  padding:30px 20px;
+}
+
+li {
+  margin:7px 0;
+}
+
+.role-panel {
+  scroll-margin-top:15px;
+}
+
+#reviewAnalysis {
+  margin:16px 0;
+}
+
+.progress {
+  padding:12px;
+  color:var(--acc);
+}
+
+@media(max-width:600px) {
+  .wrap {
+    padding:0 14px;
+  }
+
+  .hero {
+    padding:22px 0 28px;
+  }
+
+  .hero h1 {
+    margin-top:20px;
+    font-size:28px;
+  }
+
+  .hero p {
+    font-size:14px;
+  }
+
+  .brand {
+    font-size:17px;
+  }
+
+  .tabs {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+  }
+
+  .tabs button {
+    padding:11px 3px;
+    font-size:13px;
+  }
+
+  .grid,.scores {
+    grid-template-columns:1fr;
+  }
+
+  .full {
+    grid-column:auto;
+  }
+
+  .card {
+    padding:16px;
+  }
+
+  .row>input {
+    width:100%;
+    min-width:0;
+    flex-basis:100%;
+  }
+
+  .store-item {
+    gap:10px;
+  }
+}
 </style>
 </head>
+
 <body>
 
 <header class="hero">
   <div class="wrap">
-    <div>
-      <nav><b>APP TRUST AI</b><span class="links"><a href="#finder">앱 분석</a><a href="#submitCard">앱 제출</a><a href="#mineCard">내 제출 확인</a><a href="#rvCard">제출 심사</a></span></nav>
-      <span class="pill">앱 정보 분석 서비스</span><span class="pill">공개 정보만 사용</span>
-      <h1>어떻게 만들었고, 얼마나 탄탄한지<br>근거와 함께 확인하세요</h1>
-      <p>AI로 앱을 만드는 일이 흔해졌습니다. 중요한 건 AI를 썼는지가 아니라 앱이 얼마나 탄탄하고 믿을 만한지입니다. 공개 정보에서 개발 방식(AI 활용 흔적)과 기술적 완성도, 신뢰 정보를 따로 보여 드려서, 앱을 고를 때 참고하실 수 있게 돕습니다.</p>
-      <a class="cta" href="#finder">지금 분석해 보기</a>
-    </div>
+    <div class="brand">APP TRUST AI</div>
+    <h1>앱 신뢰 정보 분석</h1>
+    <p>공개 근거 기반 개발 방식·완성도 분석</p>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="card finder" id="finder">
-    <label for="q" style="font-size:16px">확인할 앱 이름 또는 웹사이트 주소</label>
-    <div class="row">
-      <input id="q" type="text" placeholder="예: 카카오톡 또는 https://example.com" autocomplete="off">
-      <button id="go">분석하기</button>
-    </div>
-    <button class="adv-toggle" id="advBtn" type="button">＋ 더 정확하게 분석하고 싶어요 (선택)</button>
-    <div id="adv">
-      <div class="g">
-        <div>
-          <label for="url">공식 웹사이트 주소</label>
-          <input id="url" type="text" placeholder="https://example.com">
-          <p class="hint">앱 이름과 함께 넣으면 같은 앱인지 확인하고, 다르면 알려 드려요. 이름 없이 주소만 넣어도 분석돼요.</p>
+
+  <!-- 기능 이동용 탭 -->
+  <nav class="tabs" aria-label="이용 목적 선택">
+    <button
+      id="nav-user"
+      data-view="user"
+      aria-controls="view-user"
+      aria-pressed="true"
+    >앱 분석</button>
+
+    <button
+      id="nav-author"
+      data-view="author"
+      aria-controls="view-author"
+      aria-pressed="false"
+    >개발자·작성자</button>
+
+    <button
+      id="nav-reviewer"
+      data-view="reviewer"
+      aria-controls="view-reviewer"
+      aria-pressed="false"
+    >심사자</button>
+  </nav>
+
+  <!-- 앱 분석 -->
+  <section
+    id="view-user"
+    class="role-panel"
+    aria-labelledby="nav-user"
+  >
+    <div class="card" id="finder">
+      <label for="q">앱 이름 또는 공식 웹사이트 주소</label>
+
+      <div class="row">
+        <input
+          id="q"
+          placeholder="카카오톡 또는 https://example.com"
+        >
+        <button id="go">분석하기</button>
+        <button id="sgo" class="ghost">스토어 검색</button>
+      </div>
+
+      <details>
+        <summary>더 정확하게 분석하기 (선택)</summary>
+
+        <div class="grid">
+          <div>
+            <label for="url">공식 웹사이트</label>
+            <input id="url" placeholder="https://example.com">
+          </div>
+
+          <div>
+            <label for="repo">GitHub 저장소</label>
+            <input
+              id="repo"
+              placeholder="https://github.com/owner/repo"
+            >
+          </div>
+
+          <div>
+            <label for="decl">개발사가 밝힌 AI 사용 여부</label>
+            <select id="decl">
+              <option value="">모름</option>
+              <option value="true">사용함</option>
+              <option value="false">사용하지 않음</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label for="repo">GitHub 저장소 주소</label>
-          <input id="repo" type="text" placeholder="https://github.com/아이디/저장소">
-          <p class="hint">코드 저장소를 알고 있으면 넣어 주세요. 커밋 기록과 설정 파일까지 살펴봐서 더 정확해져요.</p>
-        </div>
-        <div>
-          <label for="decl">개발사가 밝힌 AI 사용 여부</label>
-          <select id="decl"><option value="">모름</option><option value="true">AI 사용함</option><option value="false">AI 사용 안 함</option></select>
-          <p class="hint">알려진 내용과 공개된 흔적이 다르면 참고로 알려 드려요.</p>
-        </div>
+      </details>
+
+      <div id="progress" class="progress" role="status" hidden>
+        분석 중입니다. 잠시 기다려 주세요…
       </div>
     </div>
-    <div class="progress" id="prog" style="margin-top:14px"><div class="spin"></div><span>분석 중입니다. 최대 1분 정도 걸릴 수 있어요…</span></div>
-  </div>
 
-  <div class="card" id="batchCard">
-    <h2>여러 앱 한꺼번에 비교 <span class="small">(최대 10개)</span></h2>
-    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap">
-      <input id="bq" type="text" placeholder="쉼표나 띄어쓰기로 구분해서 적어 주세요. 예: 카카오톡 토스 당근" autocomplete="off" style="flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit">
-      <button id="bgo" type="button">일괄 분석</button>
-    </div>
-    <div style="margin-top:10px"><span id="bmsg" class="small">앱 이름 사이에 쉼표(,)나 띄어쓰기를 넣으면 최대 10개까지 한 번에 분석해요.</span></div>
-    <div id="bout" style="margin-top:14px;overflow-x:auto"></div>
-  </div>
+    <div id="storeOut" aria-live="polite"></div>
 
-  <label class="small" style="display:flex;gap:8px;align-items:center;font-weight:500;margin:0 0 10px"><input type="checkbox" id="blind" style="width:auto"> 블라인드 모드: 검수 판정을 남기기 전까지 점수·판정을 가려요 (검수가 도구에 끌려가지 않게)</label>
-  <div id="out"></div>
+    <div class="card">
+      <h2>여러 앱 비교 (최대 10개)</h2>
 
-  <div class="card" id="statsCard" style="margin-top:28px">
-    <h2>도구 정확도 <span class="small">(검수자가 남긴 판정 기준)</span></h2>
-    <div id="stats" class="small">불러오는 중…</div>
-  </div>
+      <div class="row">
+        <input
+          id="bq"
+          aria-label="비교할 앱 이름"
+          placeholder="카카오톡, 토스, 당근"
+        >
+        <button id="bgo">일괄 분석</button>
+      </div>
 
-  <!-- ===== 앱 제출 (개발자) ===== -->
-  <div class="card sf" id="submitCard" style="margin-top:28px">
-    <h2>앱 제출하기 <span class="small">(개발자용)</span></h2>
-    <p class="small">심사에 필요한 정보를 적어 주세요. <span class="req">*</span> 표시는 필수예요. <b>AI를 활용했다는 사실만으로는 불이익이 없어요.</b> 정확하게 밝혀 주시면 돼요.</p>
-    <div class="g">
-      <div><label for="s_app_name">앱 이름 <span class="req">*</span></label><input id="s_app_name" type="text" maxlength="100"></div>
-      <div><label for="s_developer">개발자(개발사) <span class="req">*</span></label><input id="s_developer" type="text" maxlength="100"></div>
-      <div><label for="s_store">배포처 <span class="req">*</span></label>
-        <select id="s_store"><option value="">선택</option><option value="app_store">App Store</option><option value="google_play">Google Play</option><option value="web">웹 서비스</option><option value="other">기타</option></select></div>
-      <div><label for="s_store_track_id">App Store 앱 번호 (선택)</label><input id="s_store_track_id" type="text" inputmode="numeric" maxlength="20" placeholder="예: 362057947">
-        <p class="hint">App Store 주소의 id 뒤 숫자예요. 넣으면 분석이 더 정확해져요.</p></div>
-      <div><label for="s_store_url">스토어 주소</label><input id="s_store_url" type="text" maxlength="500" placeholder="https://apps.apple.com/..."></div>
-      <div><label for="s_website">웹사이트</label><input id="s_website" type="text" maxlength="500" placeholder="https://"></div>
-      <div class="full"><label for="s_description">앱 설명</label><textarea id="s_description" maxlength="4000" placeholder="어떤 앱인지 50자 이상 적어 주세요."></textarea></div>
-      <div><label for="s_ai_disclosure">AI 활용 여부 <span class="req">*</span></label>
-        <select id="s_ai_disclosure"><option value="">선택</option><option value="none">AI를 사용하지 않음</option><option value="assisted">개발 일부에 AI 활용 (코드 보조·리뷰 등)</option><option value="generated">주로 AI 도구로 제작 (바이브코딩 등)</option></select></div>
-      <div><label for="s_repo">GitHub 저장소 (선택)</label><input id="s_repo" type="text" maxlength="500" placeholder="https://github.com/아이디/저장소"></div>
-      <div class="full"><label for="s_ai_note">AI 활용 설명</label><textarea id="s_ai_note" maxlength="2000" placeholder="AI를 활용했다면 어떤 도구를 어디에 썼는지 적어 주세요."></textarea></div>
-      <div><label for="s_privacy_url">개인정보처리방침 주소</label><input id="s_privacy_url" type="text" maxlength="500" placeholder="https://"></div>
-      <div><label for="s_operator_info">운영자 정보</label><input id="s_operator_info" type="text" maxlength="1000" placeholder="상호, 대표자, 연락처 등"></div>
-    </div>
-    <div style="margin-top:14px"><button id="s_go" type="button">제출하기</button></div>
-    <div id="s_out" style="margin-top:14px"></div>
-  </div>
+      <p class="small">
+        쉼표로 구분해 입력하세요. 이름 안의 공백은 유지합니다.
+      </p>
 
-  <!-- ===== 내 제출 확인 (개발자) ===== -->
-  <div class="card sf" id="mineCard">
-    <h2>내 제출 확인 · 보완 답변</h2>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <input id="m_id" type="text" inputmode="numeric" placeholder="제출 번호" style="max-width:140px">
-      <input id="m_code" type="password" placeholder="작성자 코드" autocomplete="off" style="flex:1;min-width:200px">
-      <button id="m_go" type="button">확인</button>
-    </div>
-    <div id="m_out" style="margin-top:14px"></div>
-  </div>
-
-  <!-- ===== 제출 심사 (심사자) ===== -->
-  <div class="card sf" id="rvCard">
-    <h2>제출 심사 <span class="small">(심사자용 · 심사자 코드 필요)</span></h2>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <input id="r_tok" type="password" placeholder="심사자 코드" autocomplete="off" style="max-width:200px">
-      <select id="r_status" style="max-width:180px"><option value="">전체 상태</option><option value="submitted">제출됨</option><option value="in_review">심사 중</option><option value="revision_requested">보완 요청</option><option value="resubmitted">보완 제출</option><option value="approved">승인</option><option value="rejected">반려</option></select>
-      <button id="r_go" type="button">목록 불러오기</button>
-    </div>
-    <div id="r_list" style="margin-top:14px;overflow-x:auto"></div>
-    <div id="r_detail" style="margin-top:14px"></div>
-  </div>
-
-  <section class="info" id="how">
-    <h2 class="t">이렇게 분석해요</h2>
-    <p class="lead">공개된 정보만 읽고, 판단을 강요하지 않고 근거를 보여 드립니다.</p>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><h3>자료 모으기</h3><p>앱스토어 정보, 개발사 웹사이트, 코드 저장소를 차례로 확인해요.</p></div>
-      <div class="step"><div class="n">2</div><h3>흔적 찾기</h3><p>AI 도구 설정 파일, 커밋 기록, 기본 템플릿 흔적, 개발사 정보 같은 단서를 강·중·약으로 나눠요.</p></div>
-      <div class="step"><div class="n">3</div><h3>따로 보는 두 가지</h3><p>개발 방식(AI 활용 흔적)과 기술적 완성도를 따로 계산해요. AI 활용 흔적은 품질 점수에 영향을 주지 않아요.</p></div>
-      <div class="step"><div class="n">4</div><h3>선택 가이드</h3><p>기술적 완성도와 근거 충분도로 살펴볼 때 참고할 안내를 드려요.</p></div>
+      <p id="bmsg" role="status"></p>
+      <div id="bout" class="table-wrap"></div>
     </div>
 
+    <div id="out" aria-live="polite"></div>
   </section>
+
+  <!-- 개발자·작성자 -->
+  <section
+    id="view-author"
+    class="role-panel"
+    aria-labelledby="nav-author"
+    hidden
+  >
+    <div class="card">
+      <h2>앱 정보 제출</h2>
+
+      <p>
+        AI 활용 자체로 불이익을 주지 않습니다.
+        공개 정보와 비교할 내용을 정확하게 입력하세요.
+      </p>
+
+      <p class="small">
+        이메일·푸시 알림은 아직 제공하지 않습니다.
+        제출 번호와 작성자 코드로 처리 상태를 확인하세요.
+      </p>
+
+      <div id="submitFields" class="grid"></div>
+
+      <p>
+        <button id="f_send">제출하기</button>
+        <span id="f_msg" role="status"></span>
+      </p>
+
+      <div id="f_code"></div>
+    </div>
+
+    <div class="card">
+      <h2>내 제출 확인·수정·재제출</h2>
+
+      <div class="row">
+        <input
+          id="m_id"
+          aria-label="제출 번호"
+          placeholder="제출 번호"
+          inputmode="numeric"
+        >
+
+        <input
+          id="m_code"
+          type="password"
+          aria-label="작성자 코드"
+          placeholder="작성자 코드"
+        >
+
+        <button id="m_go">확인하기</button>
+      </div>
+
+      <div id="m_out"></div>
+    </div>
+  </section>
+
+  <!-- 심사자 -->
+  <section
+    id="view-reviewer"
+    class="role-panel"
+    aria-labelledby="nav-reviewer"
+    hidden
+  >
+    <div class="card">
+      <h2>분석 결과 검수</h2>
+
+      <p class="small">
+        일반 사용자 화면과 분리된 운영 영역입니다.
+        탭 분리는 인증이 아니며,
+        저장·심사 API는 서버에서 심사자 코드를 확인합니다.
+      </p>
+
+      <button class="ghost" data-view="user">
+        앱 분석하러 가기
+      </button>
+
+      <p>
+        <label>
+          <input id="blind" type="checkbox">
+          블라인드 검수: 운영 영역의 점수와 요약을 가리고 근거부터 확인
+        </label>
+      </p>
+
+      <div id="reviewAnalysis"></div>
+    </div>
+
+    <div class="card">
+      <h2>검수 판정 일치율</h2>
+
+      <p class="small">
+        검수자의 판정과 도구 결과가 일치한 비율입니다.
+        실제 AI 사용 여부를 검증한 정확도나 앱 안전성을 의미하지 않습니다.
+      </p>
+
+      <button id="statsGo" class="ghost">통계 불러오기</button>
+      <div id="stats"></div>
+    </div>
+
+    <div class="card" id="reviewPane">
+      <h2>제출 정보 검토</h2>
+
+      <div class="row">
+        <input
+          id="rv_tok"
+          type="password"
+          placeholder="심사자 코드"
+          aria-label="심사자 코드"
+          autocomplete="off"
+        >
+        <button id="rv_list">제출 목록 불러오기</button>
+      </div>
+
+      <p id="rv_msg" role="status"></p>
+      <div id="rv_table" class="table-wrap"></div>
+      <div id="rv_detail"></div>
+    </div>
+  </section>
+
+  <!-- 기존 분석 기준 정보 유지 -->
+  <section class="card">
+    <h2>분석 기준과 업데이트 원칙</h2>
+    <div id="crit">불러오는 중…</div>
+  </section>
+
 </main>
 
 <footer>
-  결과는 확정 판단이 아닌 참고 정보입니다. AI를 활용했다는 사실만으로 앱의 품질이 낮다고 볼 수 없어요.<br>© APP TRUST AI
+  공개 정보 기반 참고 자료 · AI 활용 자체에 따른 품질 감점 없음<br>
+  © APP TRUST AI
 </footer>
 
 <script>
+/* ---------- 공통 ---------- */
+
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const SL = {strong:"강", medium:"중", weak:"약"};
 
-$("advBtn").addEventListener("click", () => {
-  const on = $("adv").classList.toggle("on");
-  $("advBtn").textContent = on ? "－ 선택 옵션 닫기" : "＋ 더 정확하게 분석하고 싶어요 (선택)";
-});
+const esc = v => String(v ?? "").replace(
+  /[&<>"']/g,
+  c => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[c])
+);
 
-async function analyze(trackId){
-  const query = $("q").value.trim();
-  const url = $("url").value.trim();
-  if(!query && !url){ $("q").focus(); return; }
-  const body = {query};
-  if(url) body.url = url;
-  if(trackId) body.track_id = trackId;
-  if($("repo").value.trim()) body.repo = $("repo").value.trim();
-  if($("decl").value) body.declared_ai = $("decl").value === "true";
-  $("go").disabled = true;
-  $("prog").classList.add("on");
-  $("out").innerHTML = "";
-  try{
-    const res = await fetch("/api/search", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
-    const txt = await res.text();
-    let data;
-    try{ data = JSON.parse(txt); }
-    catch(_){
-      $("out").innerHTML = `<div class="err"><b>서버가 올바른 답을 주지 못했어요. (상태 코드 ${res.status})</b><br>
-        <span class="small">서버가 보낸 내용: ${esc(txt.slice(0,300))}</span><br>
-        시간 초과일 가능성이 높아요. 앱 이름을 바꿔 다시 시도하거나 잠시 뒤 다시 눌러 보세요.</div>`;
-      data = null;
-    }
-    if(data) render(data);
-  }catch(e){
-    $("out").innerHTML = `<div class="err">요청에 실패했어요: ${esc(e.message)}</div>`;
+const safeURL = v => {
+  try {
+    const u = new URL(v);
+    return ["https:", "http:"].includes(u.protocol)
+      ? u.href
+      : "";
+  } catch {
+    return "";
   }
-  $("go").disabled = false;
-  $("prog").classList.remove("on");
-  $("out").scrollIntoView({behavior:"smooth", block:"start"});
+};
+
+const link = (u, text) => safeURL(u)
+  ? `<a
+       href="${esc(safeURL(u))}"
+       target="_blank"
+       rel="noopener noreferrer"
+     >${esc(text)}</a>`
+  : esc(text);
+
+const err = v => `<div class="error">${esc(v)}</div>`;
+
+const list = a =>
+  `<ul>${a.map(x => `<li>${x}</li>`).join("")}</ul>`;
+
+const fields = {
+  app_name:"앱 이름",
+  developer:"개발자(회사)명",
+  store_url:"스토어 등록 주소",
+  website:"공식 웹사이트",
+  description:"앱 설명",
+  ai_disclosure:"AI 활용 공개",
+  ai_note:"AI 활용 설명",
+  privacy_url:"개인정보 처리방침 주소",
+  operator_info:"운영자 정보",
+  repo:"GitHub 저장소"
+};
+
+const aiLabels = {
+  unknown:"밝히지 않음",
+  yes:"AI 도구 활용",
+  no:"AI 도구 미활용"
+};
+
+const strength = {
+  strong:"근거 강도: 강",
+  medium:"근거 강도: 중",
+  weak:"근거 강도: 약"
+};
+
+let activeView = "user";
+let lastAnalysis = null;
+let blindReleased = false;
+let batchRows = [];
+let storeRows = [];
+let lastPlay = null;
+
+let pickedStore = {
+  store:"manual",
+  track:null
+};
+
+let reviewData = null;
+let comparison = null;
+let requestItems = [];
+
+async function api(path, body, token) {
+  try {
+    const headers = {};
+
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    if (token) {
+      headers["x-reviewer-token"] = token;
+    }
+
+    const r = await fetch(path, {
+      method:body === undefined ? "GET" : "POST",
+      headers,
+      body:body === undefined
+        ? undefined
+        : JSON.stringify(body)
+    });
+
+    const text = await r.text();
+    let j;
+
+    try {
+      j = JSON.parse(text);
+    } catch {
+      return {
+        error:
+          `서버 응답을 읽지 못했습니다 (HTTP ${r.status}). ` +
+          "배포 로그를 확인하세요."
+      };
+    }
+
+    if (!r.ok && !j.error) {
+      return {
+        error:typeof j.detail === "string"
+          ? j.detail
+          : `요청 실패 (HTTP ${r.status})`
+      };
+    }
+
+    return j;
+
+  } catch (e) {
+    return {
+      error:"요청 실패: " + e.message
+    };
+  }
 }
 
-const ring = (v, color) => `<div class="num">${v}<small style="font-size:14px;color:#6b6b6b"> / 100</small></div><div class="meter"><b style="width:${v}%;--c:${color}"></b></div>`;
+/* ---------- 화면 전환 ---------- */
 
-function render(d){
-  if(d.error){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
-  if(d.needs_selection){          // 앱이 여러 개이거나 불확실하면 임의로 정하지 않고 고르게 한다
-    const cs = (d.candidates||[]).map(c =>
-      `<button class="ghost" data-id="${esc(c.track_id)}" data-q="${esc(d.name)}" style="margin:0 6px 6px 0">${esc(c.name)} · ${esc(c.seller)}${c.rating_count?` · 평가 ${esc(c.rating_count)}개`:""}</button>${c.url?`<a class="small" href="${esc(c.url)}" target="_blank" rel="noopener" style="margin-right:12px">스토어</a>`:""}`).join("");
-    $("out").innerHTML = `<div class="card"><h2>어떤 앱을 분석할까요?</h2><p>${esc(d.message)}</p>${cs || "<p class='small'>후보를 찾지 못했어요. 영문 이름이나 웹사이트 주소로 다시 시도해 보세요.</p>"}</div>`;
+function showView(role, hash = true) {
+  activeView = ["user", "author", "reviewer"].includes(role)
+    ? role
+    : "user";
+
+  for (const r of ["user", "author", "reviewer"]) {
+    $("view-" + r).hidden = r !== activeView;
+
+    $("nav-" + r).setAttribute(
+      "aria-pressed",
+      String(r === activeView)
+    );
+  }
+
+  if (hash) {
+    history.replaceState(
+      null,
+      "",
+      activeView === "user"
+        ? "#finder"
+        : "#" + activeView
+    );
+  }
+
+  if (activeView === "reviewer") {
+    drawReviewAnalysis();
+  }
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-view]");
+
+  if (b) {
+    e.preventDefault();
+    showView(b.dataset.view);
+  }
+});
+
+window.addEventListener("hashchange", () => {
+  showView(
+    location.hash === "#author"
+      ? "author"
+      : location.hash === "#reviewer"
+        ? "reviewer"
+        : "user",
+    false
+  );
+});
+
+/* ---------- 분석 결과 ---------- */
+
+function meter(v, label) {
+  const valid =
+    v !== null &&
+    v !== undefined &&
+    v !== "" &&
+    Number.isFinite(Number(v));
+
+  const n = valid
+    ? Math.max(0, Math.min(100, Number(v)))
+    : null;
+
+  return `
+    <div class="score">
+      <div class="num">
+        ${n === null ? "자료 없음" : n + " / 100"}
+      </div>
+
+      ${n === null ? "" : `
+        <div class="meter">
+          <i style="width:${n}%"></i>
+        </div>
+      `}
+
+      <span class="small">${esc(label)}</span>
+    </div>
+  `;
+}
+
+function evidence(d) {
+  return `
+    <div class="grid">
+      <div>
+        <h3>개발 방식 관련 근거</h3>
+
+        ${list((d.signals || []).map(s => `
+          <span class="tag weak">
+            ${s.side === "ai"
+              ? "AI 활용 관련"
+              : "개발 이력 관련"}
+          </span>
+
+          <span class="tag ${
+            ["strong", "medium", "weak"].includes(s.strength)
+              ? s.strength
+              : "weak"
+          }">
+            ${esc(strength[s.strength] || "강도 미상")}
+          </span>
+
+          ${esc(s.text)}
+        `))}
+      </div>
+
+      <div>
+        <h3>공개 자료 완성도 체크</h3>
+
+        ${list((d.quality_checks || []).map(c => `
+          ${c.ok ? "✓ 확인" : "? 미확인"}
+          · ${esc(c.label)}
+        `))}
+
+        <p class="small">
+          미확인은 결함이 확인됐다는 뜻이 아닙니다.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function summary(d) {
+  return `
+    <div class="scores">
+      ${meter(
+        d.ai_score,
+        "AI 활용 흔적 · 개발 방식 참고"
+      )}
+
+      ${meter(
+        d.quality_score,
+        "공개 자료 기준 기술적 완성도"
+      )}
+
+      ${meter(
+        d.priority,
+        "추가 확인 필요도"
+      )}
+    </div>
+
+    <p>
+      <b>${esc(d.verdict || "판단 자료 부족")}</b>
+    </p>
+
+    <span class="badge">
+      ${esc(d.triage || "추가 확인 필요")}
+    </span>
+
+    ${d.declaration_flag ? `
+      <div class="notice">
+        ${esc(d.declaration_flag)}
+      </div>
+    ` : ""}
+
+    ${d.ai_summary ? `
+      <h3>AI 요약</h3>
+      <p>${esc(d.ai_summary.summary)}</p>
+      <p>${esc(d.ai_summary.check_first || "")}</p>
+
+      ${list(
+        (d.ai_summary.questions || []).map(esc)
+      )}
+    ` : ""}
+  `;
+}
+
+function candidates(d) {
+  return (d.candidates || []).map(c => `
+    <p>
+      <button
+        class="ghost"
+        data-track="${esc(c.track_id)}"
+        data-query="${esc(d.name || $("q").value)}"
+      >
+        ${esc(c.name)} · ${esc(c.seller)}
+        ${c.rating_count
+          ? " · 평가 " + esc(c.rating_count) + "개"
+          : ""}
+      </button>
+
+      ${c.url ? link(c.url, "스토어 보기") : ""}
+    </p>
+  `).join("");
+}
+
+function render(d) {
+  if (d.error) {
+    $("out").innerHTML = err(d.error);
     return;
   }
-  const sigs = (d.signals||[]).map(s =>
-    `<li><span class="tag t-${esc(s.side)}">${s.side==="ai"?"AI 쪽":"사람 쪽"}</span><span class="tag t-${esc(s.strength)}">${SL[s.strength]||""}</span>${esc(s.text)}</li>`).join("") || "<li class='small'>발견된 흔적이 없어요.</li>";
-  const checks = (d.quality_checks||[]).map(c => `<li class="${c.ok?"ok":"no"}">${c.ok?"✔":"✘"} ${esc(c.label)}</li>`).join("");
-  const steps = (d.steps||[]).map(s =>
-    `<li><b>${esc(s.label)}</b>: ${esc(s.detail)} ${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">링크</a>`:""}</li>`).join("");
-  const notes = (d.notes||[]).map(n => `<li>${esc(n)}</li>`).join("");
-  const repos = (d.unconfirmed_repos||[]).map(r =>
-    `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <span class="small">${esc(r.desc||"")}</span></li>`).join("");
-  const cands = (d.candidates||[]).map(c =>
-    `<button class="ghost" data-id="${esc(c.track_id)}" data-q="${esc(d.name)}" style="margin:0 6px 6px 0">${esc(c.name)} · ${esc(c.seller)}${c.rating_count?` · 평가 ${esc(c.rating_count)}개`:""}</button>`).join("");
-  const q = d.quality_score;
-  const A = d.ai_summary;
-  const aiBox = A ? `<div class="card" id="aibox" style="${$("blind").checked && !!d.analysis_id ? "display:none" : ""}"><h2>AI 요약 <span class="small">(위 근거만 읽고 정리한 글이에요. 확정 판결이 아니에요)</span></h2>
-      <p>${esc(A.summary)}</p>
-      ${A.check_first?`<p><b>먼저 확인할 것</b><br>${esc(A.check_first)}</p>`:""}
-      ${(A.questions||[]).length?`<p><b>더 확인해 볼 점</b></p><ul>${A.questions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>`
-    : (d.analysis_id !== undefined || d.verdict ? `<div class="card small">AI 요약은 한 앱씩 분석할 때, 서버에 AI 키가 설정되어 있으면 표시돼요.</div>` : "");
-  const blindOn = $("blind").checked && !!d.analysis_id;     // 저장이 안 된 결과는 판정을 남길 수 없으니 가리지 않는다
-  const saveWarn = d.saved===false ? `<div class="flag">⚠ 이번 결과는 저장되지 않았어요. 검수 판정을 남길 수 없고 정확도에도 반영되지 않아요.</div>` : "";
-  $("out").innerHTML = saveWarn + `
-  <div class="card">
-    <div class="big">${esc(d.name)}</div>
-    <div class="small">개발사: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
-    <div id="blindbox" style="${blindOn?"display:none":""}">
-    <div class="scores">
-      <div class="score">${ring(d.ai_score,"#111111")}<span>AI 활용 흔적 (개발 방식 참고)</span></div>
-      <div class="score">${ring(q==null?0:q,"#6b6b6b")}<span>기술적 완성도${q==null?" (자료 없음)":""}</span></div>
-      <div class="score">${ring(d.priority,"#bdbdbd")}<span>추가 확인 필요도</span></div>
+
+  if (d.needs_selection) {
+    $("out").innerHTML = `
+      <div class="card">
+        <h2>분석할 앱을 선택하세요</h2>
+
+        <p>
+          ${esc(d.message || "검색 결과가 불확실합니다.")}
+        </p>
+
+        ${candidates(d)
+          || "후보가 없습니다. 공식 URL을 입력하세요."}
+      </div>
+    `;
+    return;
+  }
+
+  lastAnalysis = d;
+  blindReleased = false;
+
+  $("out").innerHTML = `
+    <div class="card">
+      <h2>${esc(d.name)}</h2>
+
+      <p class="small">
+        개발사: ${esc(d.seller || "-")}
+        · 근거 충분도: ${esc(d.confidence || "-")}
+      </p>
+
+      ${summary(d)}
+
+      <p class="small">
+        이 점수는 앱의 보안·안전성을 보증하지 않습니다.
+      </p>
     </div>
-    <p class="big">${esc(d.verdict)}</p>
-    <span class="badge">${esc(d.triage)}</span>
-    ${d.declaration_flag?`<div class="flag">⚠ ${esc(d.declaration_flag)}</div>`:""}
+
+    <div class="card">
+      ${evidence(d)}
     </div>
-    ${blindOn?`<div class="flag" id="blindnote">🙈 블라인드 모드예요. 아래 근거를 보고 먼저 판정을 저장하면 도구의 점수와 판정이 공개돼요.</div>`:""}
-  </div>
-  ${aiBox}
-  <div class="two">
-    <div class="card"><h2>판단 근거</h2><ul>${sigs}</ul></div>
-    <div class="card"><h2>기술적 완성도 체크</h2><ul>${checks||"<li class='small'>항목 없음</li>"}</ul></div>
-  </div>
-  <div class="card"><h2>수집 과정</h2><ul>${steps}</ul>${notes?`<p class="small">참고</p><ul>${notes}</ul>`:""}
-    ${repos?`<p class="small">확인되지 않은 GitHub 후보</p><ul>${repos}</ul>`:""}</div>
-  ${cands?`<div class="card"><h2>다른 앱 후보</h2>${cands}</div>`:""}
-  ${d.analysis_id?`
-  <div class="card"><h2>검수자 판정 기록 (운영자용)</h2>
-    <p class="small">기록이 쌓이면 점수 기준을 보정할 수 있어요.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <select id="lab" style="max-width:200px"><option value="ai">AI 활용 많음</option><option value="mixed">혼합</option><option value="human">직접 개발 위주</option></select>
-      <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
-      <input id="tok" type="password" placeholder="검수자 코드" value="${esc(sessionStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
-      <button id="rv" data-id="${d.analysis_id}">저장</button>
+
+    <div class="card">
+      <h2>수집 과정과 출처</h2>
+
+      ${list((d.steps || []).map(s => `
+        <b>${esc(s.label)}</b>: ${esc(s.detail)}
+        ${s.url ? link(s.url, "출처") : ""}
+      `))}
+
+      ${list((d.notes || []).map(esc))}
+
+      ${(d.unconfirmed_repos || []).length ? `
+        <h3>확인되지 않은 저장소 후보</h3>
+
+        ${list(d.unconfirmed_repos.map(r =>
+          link(r.url, r.url) + " " + esc(r.desc || "")
+        ))}
+      ` : ""}
+
+      <p class="small">
+        ${esc(
+          d.disclaimer
+          || "공개 정보에 기반한 참고 자료입니다."
+        )}
+      </p>
     </div>
-    <p id="rvmsg" class="small"></p></div>`:""}
-  <p class="small">${esc(d.disclaimer||"")}</p>`;
+
+    ${(d.candidates || []).length ? `
+      <div class="card">
+        <h2>다른 앱 후보</h2>
+        ${candidates(d)}
+      </div>
+    ` : ""}
+  `;
+
+  drawReviewAnalysis();
 }
 
-const LB = {ai:"AI 활용 많음", mixed:"혼합", human:"직접 개발 위주"};
-async function loadStats(){
-  const box = $("stats");
-  try{
-    const r = await fetch("/api/stats"); const d = await r.json();
-    if(d.error){ box.textContent = "아직 불러올 수 없어요: " + d.error; return; }
-    if(d.reviews === 0){ box.innerHTML = "아직 검수 판정이 없어요. 분석 뒤 '검수자 판정 기록'에서 판정을 남기면 여기에 정확도가 쌓여요."; return; }
-    let h = `검수 판정 <b>${d.reviews}건</b> 중 정확도 계산 대상 <b>${d.evaluated}건</b>, 판단 보류 ${d.hold}건`;
-    if(d.evaluated < 10){ h += `<br>데이터가 적어서 정확도는 아직 참고만 하세요. (${d.evaluated} / 10건)`; }
-    if(d.accuracy != null){
-      h += `<div class="acc">${Math.round(d.accuracy*100)}%</div><span>도구 판정이 검수 판정과 같았던 비율</span>`;
-      const L = ["ai","mixed","human"];
-      h += `<table class="mx"><tr><th>도구 \\ 검수자</th>${L.map(l=>`<th>${LB[l]}</th>`).join("")}</tr>` +
-           L.map(p=>`<tr><th>${LB[p]}</th>${L.map(l=>`<td>${d.matrix[p][l]}</td>`).join("")}</tr>`).join("") + `</table>`;
-    }
-    const adj = (d.weights||[]).filter(w => w.weight !== 1);
-    if(adj.length){
-      h += `<p><b>판정 데이터로 점수를 바꾼 근거</b> (${d.min_n}건 이상 쌓인 것만)</p><ul>` +
-           adj.map(w => `<li>${esc(w.key.split(":").slice(1).join(":"))} → 점수 ${w.weight}배 <span class="small">(${w.n}건 중 일치율 ${Math.round(w.precision*100)}%)</span></li>`).join("") + `</ul>`;
-    } else {
-      h += `<p class="small">같은 근거가 ${d.min_n}건 이상 쌓이기 전까지는 점수를 바꾸지 않아요.</p>`;
-    }
-    box.innerHTML = h;
-  }catch(e){ box.textContent = "정확도를 불러오지 못했어요."; }
-}
-loadStats();
+async function analyze(track) {
+  const query = $("q").value.trim();
+  const url = $("url").value.trim();
 
-$("go").addEventListener("click", () => analyze());
-$("q").addEventListener("keydown", e => { if(e.key==="Enter") analyze(); });
-$("out").addEventListener("click", async e => {
-  const b = e.target.closest("button"); if(!b) return;
-  if(b.id === "rv"){
-    b.disabled = true;
-    try{
-      sessionStorage.setItem("rvtok", $("tok").value);
-      const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json","x-reviewer-token":$("tok").value},
-        body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
-      const j = await r.json();
-      $("rvmsg").textContent = j.ok ? "저장했어요. 정확도에 반영돼요." : ("저장 실패: " + (j.error || "입력값을 확인해 주세요"));
-      if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const ab=$("aibox"); if(ab) ab.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
-    }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
-    b.disabled = false;
-  } else if(b.dataset.id){ if(b.dataset.q) $("q").value = b.dataset.q; analyze(Number(b.dataset.id)); }
-});
+  if (!query && !url) {
+    $("q").focus();
+    return;
+  }
 
-// ===== 일괄 분석 (서버가 최대 10개를 동시에 처리) =====
-const BMAX = 10;
-let batchRows = [];
-function drawBatch(){
-  $("bout").innerHTML = `<table class="mx" style="width:100%"><tr><th>입력</th><th>찾은 앱</th><th>AI 활용 흔적</th><th>완성도</th><th>추가 확인 필요도</th><th>선택 가이드</th><th></th></tr>` +
-    batchRows.map((r,i) => {
-      const d = r.data;
-      if(d && d.needs_selection) return `<tr><td>${esc(r.query)}</td><td colspan="5" class="small">앱이 여러 개이거나 확실하지 않아요. 상세에서 직접 골라 주세요.</td><td><button class="ghost" data-bi="${i}">고르기</button></td></tr>`;
-      if(!d || d.error) return `<tr><td>${esc(r.query)}</td><td colspan="6" class="small">실패: ${esc(d ? d.error : "")}</td></tr>`;
-      return `<tr><td>${esc(r.query)}</td><td>${esc(d.name)}</td><td>${esc(d.ai_score)}</td><td>${d.quality_score==null?"-":esc(d.quality_score)}</td><td><b>${esc(d.priority)}</b></td><td>${esc(d.triage)}</td><td><button class="ghost" data-bi="${i}">상세</button></td></tr>`;
-    }).join("") + `</table>`;
+  const body = { query };
+
+  if (url) {
+    body.url = url;
+  }
+
+  if (track) {
+    body.track_id = Number(track);
+  }
+
+  if ($("repo").value.trim()) {
+    body.repo = $("repo").value.trim();
+  }
+
+  if ($("decl").value) {
+    body.declared_ai = $("decl").value === "true";
+  }
+
+  $("go").disabled = true;
+  $("progress").hidden = false;
+  $("out").innerHTML = "";
+
+  try {
+    const j = await api("/api/search", body);
+    render(j);
+
+  } catch (e) {
+    $("out").innerHTML = err(
+      "결과 표시 중 오류가 발생했습니다: " + e.message
+    );
+
+  } finally {
+    $("go").disabled = false;
+    $("progress").hidden = true;
+  }
+
+  $("out").scrollIntoView({
+    block:"start"
+  });
 }
-$("bgo").addEventListener("click", async () => {
-  const lines = [...new Set($("bq").value.split(/[\s,，、;]+/).map(x=>x.trim()).filter(Boolean))];
-  if(!lines.length){ $("bq").focus(); return; }
-  if(lines.length > BMAX){ $("bmsg").textContent = `한 번에 ${BMAX}개까지만 가능해요. (지금 ${lines.length}개)`; return; }
+
+$("go").onclick = () => analyze();
+
+$("q").onkeydown = e => {
+  if (e.key === "Enter") {
+    analyze();
+  }
+};
+
+$("out").onclick = e => {
+  const b = e.target.closest("[data-track]");
+
+  if (b) {
+    $("q").value = b.dataset.query;
+    analyze(b.dataset.track);
+  }
+};
+
+/* ---------- 일괄 분석 ---------- */
+
+$("bgo").onclick = async () => {
+  const queries = [...new Set(
+    $("bq").value
+      .split(/[,，、;\n]+/)
+      .map(x => x.trim())
+      .filter(Boolean)
+  )];
+
+  if (!queries.length) {
+    $("bq").focus();
+    return;
+  }
+
+  if (queries.length > 10) {
+    $("bmsg").textContent = "최대 10개까지 입력하세요.";
+    return;
+  }
+
   $("bgo").disabled = true;
-  $("bout").innerHTML = "";
-  $("bmsg").textContent = `${lines.length}개 분석 중… 최대 1분 정도 걸려요. 탭을 닫지 마세요.`;
-  try{
-    const res = await fetch("/api/batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({queries:lines})});
-    const txt = await res.text();
-    let j; try{ j = JSON.parse(txt); }catch(_){ j = {error:`서버 응답 오류(${res.status}). 시간 초과일 수 있어요. 개수를 줄여 다시 시도해 보세요.`}; }
-    if(j.error){ $("bmsg").textContent = j.error; }
-    else{
-      batchRows = j.items;
-      drawBatch();
-      $("bmsg").textContent = `${j.items.length}개 완료 · 추가 확인 필요도 높은 순으로 정렬했어요`;
-    }
-  }catch(e){ $("bmsg").textContent = "요청에 실패했어요: " + e.message; }
+  $("bmsg").textContent = "일괄 분석 중…";
+
+  const j = await api("/api/batch", { queries });
+
   $("bgo").disabled = false;
-});
-$("bq").addEventListener("keydown", e => { if(e.key==="Enter") $("bgo").click(); });
-$("bout").addEventListener("click", e => {
-  const b = e.target.closest("button[data-bi]"); if(!b) return;
-  const r = batchRows[Number(b.dataset.bi)];
-  if(r && r.data){ render(r.data); $("out").scrollIntoView({behavior:"smooth"}); }
-});
 
-// ===== 앱 제출 / 제출 심사 =====
-const SFIELDS = {app_name:"앱 이름", developer:"개발자(개발사)", store:"배포처", store_track_id:"App Store 앱 번호",
-  store_url:"스토어 주소", website:"웹사이트", description:"앱 설명", ai_disclosure:"AI 활용 여부", ai_note:"AI 활용 설명",
-  privacy_url:"개인정보처리방침 주소", operator_info:"운영자 정보", repo:"GitHub 저장소"};
-const STORE_L = {app_store:"App Store", google_play:"Google Play", web:"웹 서비스", other:"기타"};
-const AID_L = {none:"AI를 사용하지 않음", assisted:"개발 일부에 AI 활용", generated:"주로 AI 도구로 제작"};
-const SSTAT = {submitted:"제출됨", in_review:"심사 중", revision_requested:"보완 요청", resubmitted:"보완 제출", approved:"승인", rejected:"반려"};
-const showVal = (k, v) => v==null || v==="" ? "-" : k==="store" ? (STORE_L[v]||v) : k==="ai_disclosure" ? (AID_L[v]||v) : v;
+  if (j.error) {
+    $("bmsg").textContent = j.error;
+    return;
+  }
 
-async function api(method, url, body, headers){
-  const opt = {method, headers:{...(headers||{})}};
-  if(body !== undefined){ opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
-  const res = await fetch(url, opt);
-  const txt = await res.text();
-  try{ return JSON.parse(txt); }catch(_){ return {error:`서버 응답 오류 (상태 코드 ${res.status})`}; }
+  batchRows = j.items || [];
+
+  $("bmsg").textContent =
+    `${batchRows.length}개 응답 완료`;
+
+  $("bout").innerHTML = `
+    <table>
+      <tr>
+        <th>입력</th>
+        <th>앱</th>
+        <th>AI 흔적</th>
+        <th>완성도</th>
+        <th>확인 필요도</th>
+        <th>보기</th>
+      </tr>
+
+      ${batchRows.map((r, i) => {
+        const d = r.data || {};
+
+        return `
+          <tr>
+            <td>${esc(r.query)}</td>
+
+            <td>
+              ${esc(d.error || d.name || "선택 필요")}
+            </td>
+
+            <td>${esc(d.ai_score ?? "-")}</td>
+            <td>${esc(d.quality_score ?? "-")}</td>
+            <td>${esc(d.priority ?? "-")}</td>
+
+            <td>
+              <button class="ghost" data-batch="${i}">
+                ${d.needs_selection ? "앱 선택" : "상세"}
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("")}
+    </table>
+  `;
+};
+
+$("bout").onclick = e => {
+  const b = e.target.closest("[data-batch]");
+
+  if (!b) {
+    return;
+  }
+
+  const r = batchRows[Number(b.dataset.batch)];
+
+  $("q").value = r.query;
+  $("url").value = "";
+  $("repo").value = "";
+  $("decl").value = "";
+
+  render(r.data || {error:"응답 없음"});
+  $("out").scrollIntoView();
+};
+
+/* ---------- 제출 양식 ---------- */
+
+function formInput(f, value = "", prefix = "f_") {
+  const id = prefix + f;
+  const attr = `id="${id}" data-field="${f}"`;
+
+  if (f === "ai_disclosure") {
+    return `
+      <select ${attr}>
+        ${Object.entries(aiLabels).map(([k, v]) => `
+          <option
+            value="${k}"
+            ${value === k ? "selected" : ""}
+          >${v}</option>
+        `).join("")}
+      </select>
+    `;
+  }
+
+  if (["description", "ai_note", "operator_info"].includes(f)) {
+    return `
+      <textarea ${attr} rows="3">${esc(value)}</textarea>
+    `;
+  }
+
+  return `
+    <input
+      ${attr}
+      value="${esc(value)}"
+      ${f === "app_name" ? 'maxlength="300"' : ""}
+    >
+  `;
 }
 
-function critHTML(c){
-  if(!c) return "";
-  return `<div class="crit">` + Object.entries(c.categories).map(([k, cat]) => {
-    const items = c.items.filter(i => i.category === k).map(i =>
-      `<li class="${i.ok===null?"na":i.ok?"ok":"no"}">${i.ok===null?"–":i.ok?"✔":"✘"} ${esc(i.label)}</li>`).join("");
-    return `<div class="score">${cat.score==null?`<div class="num">-</div><div class="meter"><b style="width:0"></b></div>`:ring(cat.score,"#111111")}
-      <span><b>${esc(cat.label)}</b> · ${esc(cat.status)}</span><ul>${items}</ul></div>`;
-  }).join("") + `</div><p class="small">AI 활용 여부 자체는 점수에 영향을 주지 않아요. '–'는 자료가 없어 평가하지 않은 항목이에요.</p>`;
-}
+$("submitFields").innerHTML = Object.entries(fields)
+  .map(([f, label]) => `
+    <div class="${
+      ["description", "ai_note"].includes(f)
+        ? "full"
+        : ""
+    }">
+      <label for="f_${f}">
+        ${label}${f === "app_name" ? " *" : ""}
+      </label>
 
-function subInfoHTML(s){
-  return `<table class="mx" style="width:100%;text-align:left">` + Object.keys(SFIELDS).map(k =>
-    `<tr><th style="width:170px;text-align:left">${esc(SFIELDS[k])}</th><td style="text-align:left;white-space:pre-wrap">${esc(showVal(k, s[k]))}</td></tr>`).join("") + `</table>`;
-}
-
-// ---- 개발자: 제출 ----
-$("s_go").addEventListener("click", async () => {
-  const body = {};
-  Object.keys(SFIELDS).forEach(k => { body[k] = $("s_"+k).value.trim(); });
-  $("s_go").disabled = true;
-  try{
-    const j = await api("POST", "/api/submissions", body);
-    if(j.error){ $("s_out").innerHTML = `<div class="err">${esc(j.error)}</div>`; }
-    else{
-      $("s_out").innerHTML = `<div class="flag"><b>제출했어요. 아래 두 가지를 꼭 따로 적어 두세요.</b><br>
-        제출 번호: <b>${esc(j.submission.id)}</b><div class="codebox">${esc(j.author_code)}</div>
-        작성자 코드는 다시 보여 드릴 수 없어요. 잃어버리면 내 제출 확인과 보완 답변을 할 수 없어요.</div>
-        <h2 style="margin-top:14px">제출 정보 점검</h2>${critHTML(j.criteria)}`;
-      $("m_id").value = j.submission.id;
-    }
-  }catch(e){ $("s_out").innerHTML = `<div class="err">요청에 실패했어요: ${esc(e.message)}</div>`; }
-  $("s_go").disabled = false;
-});
-
-// ---- 개발자: 내 제출 확인 / 보완 답변 ----
-async function loadMine(){
-  const id = $("m_id").value.trim(), code = $("m_code").value.trim();
-  if(!/^\d+$/.test(id) || !code){ $("m_out").innerHTML = `<div class="err">제출 번호(숫자)와 작성자 코드를 입력해 주세요.</div>`; return; }
-  const j = await api("GET", `/api/submissions/${id}/mine`, undefined, {"x-author-code": code});
-  drawMine(j);
-}
-function drawMine(j){
-  if(j.error){ $("m_out").innerHTML = `<div class="err">${esc(j.error)}</div>`; return; }
-  const s = j.submission;
-  const revs = j.revisions.map(r => `<div class="rev"><b>${esc(r.field_label)}</b> <span class="badge">${esc(r.status_label)}</span>
-      <div class="small">요청 사유: ${esc(r.reason)}</div>
-      ${r.status==="open" ? `<div class="row"><input id="ans_${r.id}" type="text" value="${esc(s[r.field]??"")}" placeholder="수정할 내용">
-        <button class="ghost" data-ans="${r.id}">답변 제출</button></div>` : r.new_value!=null ? `<div class="small">내 답변: ${esc(r.new_value)}</div>` : ""}
-    </div>`).join("") || `<p class="small">받은 보완 요청이 없어요.</p>`;
-  const ev = j.events.map(e => `<li>${esc(e.label)} <span class="small">${esc((e.created_at||"").slice(0,16).replace("T"," "))}</span></li>`).join("");
-  $("m_out").innerHTML = `<div class="big">#${esc(s.id)} ${esc(s.app_name)}</div><span class="badge">${esc(s.status_label)}</span>
-    <h2 style="margin-top:14px">보완 요청</h2>${revs}
-    <h2 style="margin-top:14px">제출 정보 점검</h2>${critHTML(j.criteria)}
-    <h2>제출 정보</h2>${subInfoHTML(s)}<h2 style="margin-top:14px">처리 이력</h2><ul>${ev}</ul>`;
-}
-$("m_go").addEventListener("click", loadMine);
-$("m_out").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-ans]"); if(!b) return;
-  b.disabled = true;
-  const j = await api("POST", `/api/submissions/${$("m_id").value.trim()}/revisions/${b.dataset.ans}/answer`,
-    {value: $("ans_"+b.dataset.ans).value}, {"x-author-code": $("m_code").value.trim()});
-  if(j.error){ alert(j.error); b.disabled = false; return; }
-  drawMine(j);
-});
-
-// ---- 심사자: 목록 / 상세 ----
-$("r_tok").value = sessionStorage.getItem("rvtok") || "";
-const rvH = () => { sessionStorage.setItem("rvtok", $("r_tok").value); return {"x-reviewer-token": $("r_tok").value}; };
-let curSub = null;
-
-async function loadSubList(){
-  const st = $("r_status").value;
-  const j = await api("GET", "/api/submissions" + (st ? `?status=${encodeURIComponent(st)}` : ""), undefined, rvH());
-  if(j.error){ $("r_list").innerHTML = `<div class="err">${esc(j.error)}</div>`; return; }
-  if(!j.items.length){ $("r_list").innerHTML = `<p class="small">제출 건이 없어요.</p>`; return; }
-  $("r_list").innerHTML = `<table class="mx" style="width:100%"><tr><th>번호</th><th>앱 이름</th><th>개발자</th><th>배포처</th><th>AI 활용</th><th>상태</th><th>제출일</th><th></th></tr>` +
-    j.items.map(s => `<tr><td>${esc(s.id)}</td><td>${esc(s.app_name)}</td><td>${esc(s.developer)}</td><td>${esc(showVal("store", s.store))}</td>
-      <td>${esc(showVal("ai_disclosure", s.ai_disclosure))}</td><td><b>${esc(s.status_label)}</b></td>
-      <td>${esc((s.created_at||"").slice(0,10))}</td><td><button class="ghost" data-sid="${esc(s.id)}">상세</button></td></tr>`).join("") + `</table>`;
-}
-async function loadSub(id){
-  const j = await api("GET", `/api/submissions/${id}`, undefined, rvH());
-  drawSub(j);
-}
-function drawSub(j){
-  if(j.error){ $("r_detail").innerHTML = `<div class="err">${esc(j.error)}</div>`; return; }
-  const s = j.submission; curSub = s.id;
-  const a = j.analysis;
-  const revs = j.revisions.map(r => `<div class="rev"><b>${esc(r.field_label)}</b> <span class="badge">${esc(r.status_label)}</span>
-      <div class="small">사유: ${esc(r.reason)}</div>
-      <div class="small">요청 당시 값: ${esc(r.old_value??"-")} → 답변: ${esc(r.new_value??"-")}</div>
-      ${r.status==="open"||r.status==="answered" ? `<div class="row"><button class="ghost" data-res="${r.id}" data-out="resolved">확인 완료</button>
-        <button class="ghost" data-res="${r.id}" data-out="dismissed">요청 철회</button></div>` : ""}</div>`).join("") || `<p class="small">보완 요청이 없어요.</p>`;
-  const ev = j.events.map(e => `<li>${esc(e.label)} <span class="small">${esc((e.created_at||"").slice(0,16).replace("T"," "))}
-      ${e.detail && e.detail.to ? ` · ${esc(SSTAT[e.detail.from]||e.detail.from||"")} → ${esc(SSTAT[e.detail.to]||e.detail.to)}` : ""}
-      ${e.detail && e.detail.note ? ` · ${esc(e.detail.note)}` : ""}
-      ${e.kind==="analyzed" && e.detail ? (e.detail.error ? ` · 실패: ${esc(e.detail.error)}` : ` · AI ${esc(e.detail.ai_score)} / 완성도 ${esc(e.detail.quality_score??"-")} (분석 #${esc(e.detail.analysis_id??"미저장")})`) : ""}</span></li>`).join("");
-  const sugg = (j.criteria.suggestions||[]);
-  $("r_detail").innerHTML = `<div class="card" style="box-shadow:none">
-    <div class="big">#${esc(s.id)} ${esc(s.app_name)}</div><span class="badge">${esc(s.status_label)}</span>
-    <h2 style="margin-top:14px">기준별 점검</h2>${critHTML(j.criteria)}
-    ${a ? `<p class="small">최근 자동 분석: ${esc(a.verdict||"")} · AI 생성 가능성 ${esc(a.ai_score)} · 완성도 ${esc(a.quality_score??"-")}</p>` : `<p class="small">아직 자동 분석을 하지 않았어요. 분석하면 기술적 완성도와 투명성 점검이 보강돼요.</p>`}
-    <button id="r_an" type="button">이 앱 자동 분석하기</button> <span id="r_anmsg" class="small"></span>
-    <h2 style="margin-top:18px">상태 변경</h2>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <select id="r_newst" style="max-width:180px">${Object.entries(SSTAT).map(([k,v]) => `<option value="${k}" ${k===s.status?"selected":""}>${v}</option>`).join("")}</select>
-      <input id="r_stnote" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px">
-      <button id="r_stgo" type="button">상태 저장</button>
+      ${formInput(
+        f,
+        f === "ai_disclosure" ? "unknown" : ""
+      )}
     </div>
-    <h2 style="margin-top:18px">보완 요청</h2>${revs}
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
-      <select id="r_field" style="max-width:220px">${Object.entries(SFIELDS).map(([k,v]) => `<option value="${k}">${v}</option>`).join("")}</select>
-      <input id="r_reason" type="text" placeholder="보완 요청 사유" style="flex:1;min-width:200px">
-      <button id="r_rqgo" type="button">보완 요청</button>
-    </div>
-    ${sugg.length ? `<p class="small">기준 미충족 항목: ${sugg.map(x => `<a href="#" data-sugg="${esc(x.field)}" data-reason="${esc(x.reason)}">${esc(SFIELDS[x.field]||x.field)}</a>`).join(", ")} (누르면 요청 칸이 채워져요)</p>` : ""}
-    <h2 style="margin-top:18px">제출 정보</h2>${subInfoHTML(s)}
-    <h2 style="margin-top:14px">처리 이력</h2><ul>${ev}</ul></div>`;
+  `).join("");
+
+function fillForm(a) {
+  for (const f of Object.keys(fields)) {
+    $("f_" + f).value = "";
+  }
+
+  $("f_ai_disclosure").value = "unknown";
+  $("f_app_name").value = a.name || "";
+  $("f_developer").value = a.seller || "";
+  $("f_store_url").value = a.url || "";
+  $("f_website").value = a.seller_url || "";
+  $("f_description").value = a.description || "";
+
+  pickedStore = {
+    store:a.store || "manual",
+    track:a.track_id || null
+  };
+
+  showView("author");
+
+  $("f_msg").textContent =
+    "스토어에서 가져온 내용을 확인하고 누락된 정보를 입력하세요.";
 }
-$("r_go").addEventListener("click", loadSubList);
-$("r_list").addEventListener("click", e => { const b = e.target.closest("button[data-sid]"); if(b) loadSub(Number(b.dataset.sid)); });
-$("r_detail").addEventListener("click", async e => {
-  const sg = e.target.closest("a[data-sugg]");
-  if(sg){ e.preventDefault(); $("r_field").value = sg.dataset.sugg; $("r_reason").value = sg.dataset.reason; return; }
-  const b = e.target.closest("button"); if(!b || curSub == null) return;
-  b.disabled = true;
-  try{
-    if(b.id === "r_stgo"){
-      const j = await api("POST", `/api/submissions/${curSub}/status`, {status:$("r_newst").value, note:$("r_stnote").value}, rvH());
-      j.error ? alert(j.error) : (drawSub(j), loadSubList());
-    } else if(b.id === "r_rqgo"){
-      const j = await api("POST", `/api/submissions/${curSub}/revisions`, {field:$("r_field").value, reason:$("r_reason").value}, rvH());
-      j.error ? alert(j.error) : (drawSub(j), loadSubList());
-    } else if(b.dataset.res){
-      const j = await api("POST", `/api/revisions/${b.dataset.res}/resolve`, {outcome:b.dataset.out}, rvH());
-      j.error ? alert(j.error) : drawSub(j);
-    } else if(b.id === "r_an"){
-      $("r_anmsg").textContent = "분석 중… 최대 1분 정도 걸려요.";
-      const d = await api("POST", `/api/submissions/${curSub}/analyze`, undefined, rvH());
-      if(d.error && !d.name){ $("r_anmsg").textContent = d.error; }
-      else{
-        render(d);                                   // 기존 분석 결과 화면을 그대로 사용 (심사자 판정 기록 포함)
-        loadSub(curSub);
-        $("out").scrollIntoView({behavior:"smooth", block:"start"});
-      }
+
+/* ---------- 스토어 검색 ---------- */
+
+$("sgo").onclick = async () => {
+  const query = $("q").value.trim();
+
+  if (!query) {
+    $("q").focus();
+    return;
+  }
+
+  $("sgo").disabled = true;
+
+  $("storeOut").innerHTML =
+    '<div class="card">스토어 조회 중…</div>';
+
+  const j = await api("/api/store/search", { query });
+
+  $("sgo").disabled = false;
+
+  if (j.error) {
+    $("storeOut").innerHTML = err(j.error);
+    return;
+  }
+
+  storeRows = j.apple || [];
+
+  const gp = j.google_play || {};
+  lastPlay = gp.parsed || null;
+
+  $("storeOut").innerHTML = `
+    <div class="card">
+      <h2>App Store 검색 결과</h2>
+
+      ${storeRows.map((a, i) => `
+        <div class="store-item">
+          ${safeURL(a.icon) ? `
+            <img
+              src="${esc(safeURL(a.icon))}"
+              alt="${esc(a.name)} 아이콘"
+              loading="lazy"
+            >
+          ` : ""}
+
+          <div>
+            <b>${esc(a.name)}</b>
+
+            <p class="small">
+              ${esc(a.seller)}
+              · 평가 ${esc(a.rating_count ?? "-")}개
+            </p>
+
+            <p class="small">
+              ${esc(a.description)}
+            </p>
+
+            <div class="row">
+              <button
+                class="ghost"
+                data-store-an="${i}"
+              >이 앱 분석</button>
+
+              <button
+                class="ghost"
+                data-store-fill="${i}"
+              >제출 양식 채우기</button>
+
+              ${link(a.url, "스토어 보기")}
+            </div>
+          </div>
+        </div>
+      `).join("") || `
+        <p>
+          결과가 없습니다.
+          공식 URL 또는 직접 정보 입력을 이용하세요.
+        </p>
+      `}
+
+      <h3>Google Play</h3>
+
+      <p class="small">
+        ${esc(
+          gp.message
+          || "현재 자동 이름 검색·설명 수집을 제공하지 않습니다. " +
+             "주소 또는 패키지명만 확인합니다."
+        )}
+      </p>
+
+      <div class="row">
+        <input
+          id="playIn"
+          placeholder="Google Play URL 또는 패키지명"
+          aria-label="Google Play 주소"
+        >
+
+        <button id="playParse" class="ghost">
+          주소 확인·양식 채우기
+        </button>
+      </div>
+
+      ${lastPlay ? `
+        <p>
+          <button id="playFill" class="ghost">
+            인식된 Play 주소로 양식 채우기
+          </button>
+        </p>
+      ` : ""}
+
+      <p id="playMsg"></p>
+    </div>
+  `;
+};
+
+function fillPlay() {
+  fillForm({
+    name:/[\/.:]/.test($("q").value)
+      ? ""
+      : $("q").value,
+
+    store:"google_play",
+    url:lastPlay.url
+  });
+
+  $("f_msg").textContent =
+    "Play 주소만 채웠습니다. 이름·개발자·설명은 직접 입력하세요.";
+}
+
+$("storeOut").onclick = async e => {
+  const b = e.target.closest("button");
+
+  if (!b) {
+    return;
+  }
+
+  if (b.dataset.storeAn !== undefined) {
+    const a = storeRows[Number(b.dataset.storeAn)];
+
+    $("q").value = a.name;
+    $("url").value = "";
+    $("repo").value = "";
+    $("decl").value = "";
+
+    analyze(a.track_id);
+
+  } else if (b.dataset.storeFill !== undefined) {
+    fillForm(storeRows[Number(b.dataset.storeFill)]);
+
+  } else if (b.id === "playParse") {
+    const j = await api("/api/store/play", {
+      query:$("playIn").value
+    });
+
+    if (j.error) {
+      $("playMsg").textContent = j.error;
+      return;
     }
-  }catch(err){ alert("요청에 실패했어요: " + err.message); }
-  if(document.body.contains(b)) b.disabled = false;
-});
+
+    lastPlay = j;
+    fillPlay();
+
+  } else if (b.id === "playFill" && lastPlay) {
+    fillPlay();
+  }
+};
+
+/* ---------- 작성자 제출 ---------- */
+
+$("f_send").onclick = async () => {
+  const body = {
+    store:pickedStore.store,
+    store_track_id:pickedStore.track
+  };
+
+  for (const f of Object.keys(fields)) {
+    body[f] = $("f_" + f).value;
+  }
+
+  if (!body.app_name.trim()) {
+    $("f_msg").textContent = "앱 이름을 입력하세요.";
+    return;
+  }
+
+  $("f_send").disabled = true;
+
+  const j = await api("/api/submissions", body);
+
+  $("f_send").disabled = false;
+
+  if (j.error) {
+    $("f_msg").textContent = j.error;
+    return;
+  }
+
+  $("f_msg").textContent = "제출했습니다.";
+  $("m_id").value = j.id;
+  $("m_code").value = j.author_code;
+
+  $("f_code").innerHTML = `
+    <div class="notice">
+      <b>제출 번호: ${esc(j.id)}</b><br>
+      작성자 코드: <b>${esc(j.author_code)}</b><br>
+      다시 확인·재제출할 때 필요합니다.
+      따로 안전하게 보관하세요.
+    </div>
+  `;
+};
+
+/* ---------- 작성자 조회·재제출 ---------- */
+
+const val = (f, v) => f === "ai_disclosure"
+  ? (aiLabels[v] || v || "-")
+  : (v || "-");
+
+const events = d => list(
+  (d.events || []).map(e => `
+    ${esc(
+      (e.created_at || "")
+        .slice(0, 16)
+        .replace("T", " ")
+    )}
+    · ${esc(e.detail || e.kind)}
+  `)
+);
+
+function drawMine(d) {
+  const s = d.submission;
+
+  if (!s) {
+    $("m_out").innerHTML =
+      err("제출 정보를 읽지 못했습니다.");
+    return;
+  }
+
+  const requests = d.requests || [];
+
+  const open = requests.filter(
+    r => r.status === "open"
+  );
+
+  $("m_out").innerHTML = `
+    <h3>
+      ${esc(s.app_name)}
+
+      <span class="badge">
+        ${esc(d.status_label || s.status)}
+      </span>
+    </h3>
+
+    ${requests.map((r, i) => `
+      <div class="request ${
+        r.status === "open" ? "open" : ""
+      }">
+        <b>${esc(fields[r.field] || r.field)}</b>
+        · ${r.status === "open" ? "수정 필요" : "재제출됨"}
+
+        <p>사유: ${esc(r.reason)}</p>
+
+        <p class="small">
+          이전: ${esc(val(r.field, r.old_value))}
+
+          ${r.status === "resolved"
+            ? " → 수정: " + esc(val(r.field, r.new_value))
+            : ""}
+        </p>
+
+        ${r.status === "open" && fields[r.field]
+          ? formInput(
+              r.field,
+              s[r.field] || "",
+              "edit" + i + "_"
+            )
+          : ""}
+      </div>
+    `).join("") || "<p>수정 요청이 없습니다.</p>"}
+
+    ${open.length ? `
+      <button id="resubmit">
+        수정 내용 재제출
+      </button>
+
+      <p id="resubmitMsg"></p>
+    ` : ""}
+
+    <h3>처리 이력</h3>
+    ${events(d)}
+  `;
+}
+
+$("m_go").onclick = async () => {
+  const j = await api("/api/submissions/mine", {
+    id:Number($("m_id").value),
+    code:$("m_code").value.trim()
+  });
+
+  if (j.error) {
+    $("m_out").innerHTML = err(j.error);
+    return;
+  }
+
+  drawMine(j);
+};
+
+$("m_out").onclick = async e => {
+  if (e.target.id !== "resubmit") {
+    return;
+  }
+
+  const updates = {};
+
+  $("m_out").querySelectorAll("[data-field]").forEach(el => {
+    updates[el.dataset.field] = el.value;
+  });
+
+  e.target.disabled = true;
+
+  const j = await api("/api/submissions/resubmit", {
+    id:Number($("m_id").value),
+    code:$("m_code").value.trim(),
+    updates
+  });
+
+  if (j.error) {
+    e.target.disabled = false;
+    $("resubmitMsg").textContent = j.error;
+    return;
+  }
+
+  drawMine(j);
+};
+
+/* ---------- 심사자 분석 검수 ---------- */
+
+function drawReviewAnalysis() {
+  const d = lastAnalysis;
+
+  if (!d) {
+    $("reviewAnalysis").innerHTML = `
+      <p class="small">
+        아직 분석한 앱이 없습니다.
+      </p>
+    `;
+    return;
+  }
+
+  const concealed =
+    $("blind").checked && !blindReleased;
+
+  const form = d.analysis_id ? `
+    <h3>개발 방식 검수 판정</h3>
+
+    <div class="row">
+      <select id="label" aria-label="검수 판정">
+        <option value="ai">AI 활용 많음</option>
+        <option value="mixed">혼합</option>
+        <option value="human">직접 개발 위주</option>
+      </select>
+
+      <input
+        id="reviewNote"
+        placeholder="검수 메모"
+        aria-label="검수 메모"
+      >
+
+      <button id="saveReview">판정 저장</button>
+    </div>
+
+    <p class="small">
+      아래 제출 정보 검토 영역에 입력한 심사자 코드를 사용합니다.
+      근거가 부족하면 저장하지 마세요.
+    </p>
+
+    <p id="reviewMsg"></p>
+  ` : `
+    <p class="notice">
+      저장된 분석 번호가 없어 검수 판정을 기록할 수 없습니다.
+    </p>
+  `;
+
+  $("reviewAnalysis").innerHTML = `
+    <h3>${esc(d.name)}</h3>
+
+    ${concealed ? `
+      <p class="notice">
+        점수와 요약을 가렸습니다.
+        근거를 검토한 뒤 판정을 저장하세요.
+      </p>
+    ` : summary(d)}
+
+    ${evidence(d)}
+
+    ${d.saved === false ? `
+      <p class="notice">
+        분석 결과의 DB 저장이 되지 않았습니다.
+      </p>
+    ` : ""}
+
+    ${form}
+  `;
+}
+
+$("blind").onchange = () => {
+  blindReleased = false;
+  drawReviewAnalysis();
+};
+
+$("reviewAnalysis").onclick = async e => {
+  if (e.target.id !== "saveReview") {
+    return;
+  }
+
+  if (!$("rv_tok").value) {
+    $("reviewMsg").textContent =
+      "심사자 코드를 아래에 입력하세요.";
+
+    $("rv_tok").focus();
+    return;
+  }
+
+  e.target.disabled = true;
+
+  const j = await api(
+    "/api/review",
+    {
+      analysis_id:Number(lastAnalysis.analysis_id),
+      reviewer_label:$("label").value,
+      note:$("reviewNote").value
+    },
+    $("rv_tok").value
+  );
+
+  if (j.error || !j.ok) {
+    e.target.disabled = false;
+
+    $("reviewMsg").textContent =
+      j.error || "저장되지 않았습니다.";
+
+    return;
+  }
+
+  blindReleased = true;
+  drawReviewAnalysis();
+
+  $("reviewMsg").textContent = "저장했습니다.";
+  loadStats();
+};
+
+/* ---------- 검수 통계 ---------- */
+
+async function loadStats() {
+  const j = await api("/api/stats");
+
+  if (j.error) {
+    $("stats").innerHTML = err(j.error);
+    return;
+  }
+
+  const labels = {
+    ai:"AI 활용 많음",
+    mixed:"혼합",
+    human:"직접 개발 위주"
+  };
+
+  let h = `
+    <p>
+      검수 ${esc(j.reviews ?? 0)}건
+      · 계산 대상 ${esc(j.evaluated ?? 0)}건
+      · 보류 ${esc(j.hold ?? 0)}건
+    </p>
+  `;
+
+  if (j.accuracy != null) {
+    h += `
+      <p>
+        <b>${Math.round(j.accuracy * 100)}%</b>
+        판정 일치율
+      </p>
+    `;
+  }
+
+  if ((j.evaluated || 0) < 10) {
+    h += `
+      <p class="small">
+        표본이 적어 참고용입니다.
+      </p>
+    `;
+  }
+
+  if (j.matrix) {
+    h += `
+      <div class="table-wrap">
+        <table>
+          <tr>
+            <th>도구 / 검수자</th>
+
+            ${Object.values(labels).map(esc).map(
+              x => `<th>${x}</th>`
+            ).join("")}
+          </tr>
+
+          ${Object.keys(labels).map(p => `
+            <tr>
+              <th>${labels[p]}</th>
+
+              ${Object.keys(labels).map(l => `
+                <td>${esc(j.matrix[p]?.[l] ?? 0)}</td>
+              `).join("")}
+            </tr>
+          `).join("")}
+        </table>
+      </div>
+    `;
+  }
+
+  const weights = (j.weights || []).filter(
+    w => w.weight !== 1
+  );
+
+  if (weights.length) {
+    h += "<h3>보정된 근거</h3>";
+
+    h += list(weights.map(w => `
+      ${esc(w.key)}
+      · ${esc(w.weight)}배
+      (${esc(w.n)}건)
+    `));
+  }
+
+  $("stats").innerHTML = h;
+}
+
+$("statsGo").onclick = loadStats;
+
+/* ---------- 심사자 제출 목록 ---------- */
+
+async function reviewerList() {
+  const j = await api(
+    "/api/reviewer/list",
+    {},
+    $("rv_tok").value
+  );
+
+  if (j.error) {
+    $("rv_msg").textContent = j.error;
+    return;
+  }
+
+  if (!Array.isArray(j)) {
+    $("rv_msg").textContent =
+      "목록 응답 형식을 확인하세요.";
+    return;
+  }
+
+  $("rv_msg").textContent = `제출 ${j.length}건`;
+
+  $("rv_table").innerHTML = `
+    <table>
+      <tr>
+        <th>번호</th>
+        <th>앱·개발자</th>
+        <th>상태</th>
+        <th>보기</th>
+      </tr>
+
+      ${j.map(s => `
+        <tr>
+          <td>${esc(s.id)}</td>
+
+          <td>
+            ${esc(s.app_name)}<br>
+            ${esc(s.developer)}
+          </td>
+
+          <td>
+            ${esc(s.status_label || s.status)}
+          </td>
+
+          <td>
+            <button
+              class="ghost"
+              data-open="${esc(s.id)}"
+            >열기</button>
+          </td>
+        </tr>
+      `).join("")}
+    </table>
+  `;
+}
+
+$("rv_list").onclick = reviewerList;
+
+/* ---------- 심사자 상세·수정 요청 ---------- */
+
+function drawReviewer() {
+  const d = reviewData;
+  const s = d.submission;
+  const req = d.requests || [];
+
+  const cmp = comparison ? `
+    <h3>공개 정보와 비교</h3>
+
+    ${comparison.analysis
+      ? summary(comparison.analysis)
+      : ""}
+
+    ${list((comparison.comparison || []).map(c => `
+      ${c.state === "ok"
+        ? "✓ 확인"
+        : c.state === "warn"
+          ? "⚠ 확인 필요"
+          : "? 미확인"}
+
+      · <b>${esc(c.item)}</b>: ${esc(c.detail)}
+    `))}
+  ` : "";
+
+  $("rv_detail").innerHTML = `
+    <h3>
+      #${esc(s.id)} ${esc(s.app_name)}
+      · ${esc(d.status_label || s.status)}
+    </h3>
+
+    <div class="table-wrap">
+      <table>
+        ${Object.keys(fields).map(f => `
+          <tr>
+            <th>${fields[f]}</th>
+            <td>${esc(val(f, s[f]))}</td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+
+    <p>
+      <button class="ghost" data-act="analyze">
+        분석·비교 실행
+      </button>
+    </p>
+
+    ${cmp}
+
+    <h3>항목별 수정 요청</h3>
+
+    <p class="small">
+      무엇이 왜 잘못되었고 어떻게 수정해야 하는지
+      5자 이상 구체적으로 적어 주세요.
+    </p>
+
+    <div class="row">
+      <select
+        id="requestField"
+        aria-label="수정 요청 항목"
+      >
+        ${Object.keys(fields).map(f => `
+          <option value="${f}">${fields[f]}</option>
+        `).join("")}
+      </select>
+
+      <input
+        id="requestReason"
+        placeholder="예: 개인정보처리방침 링크가 404입니다. 유효한 링크를 입력하세요."
+        aria-label="수정 요청 사유"
+      >
+
+      <button class="ghost" data-act="add">
+        항목 추가
+      </button>
+    </div>
+
+    ${list(requestItems.map((r, i) => `
+      <b>${esc(fields[r.field])}</b>: ${esc(r.reason)}
+
+      <button class="ghost" data-remove="${i}">
+        삭제
+      </button>
+    `))}
+
+    ${requestItems.length ? `
+      <button data-act="send">
+        수정 요청 보내기
+      </button>
+    ` : ""}
+
+    <p id="actionMsg" role="status"></p>
+
+    <h3>처리 상태</h3>
+
+    <div class="row">
+      <button class="ghost" data-state="in_review">
+        검토 중으로 표시
+      </button>
+
+      <button class="ghost" data-state="approved">
+        검토 완료로 표시
+      </button>
+    </div>
+
+    <h3>수정 요청 이력</h3>
+
+    ${req.map(r => `
+      <div class="request">
+        <b>${esc(fields[r.field] || r.field)}</b>
+
+        · ${r.status === "open"
+          ? "작성자 처리 대기"
+          : "재제출됨"}
+
+        <p>${esc(r.reason)}</p>
+
+        <p class="small">
+          이전: ${esc(val(r.field, r.old_value))}
+
+          ${r.status === "resolved"
+            ? " → 수정: " + esc(val(r.field, r.new_value))
+            : ""}
+        </p>
+      </div>
+    `).join("") || "<p>이력이 없습니다.</p>"}
+
+    <h3>처리 기록</h3>
+    ${events(d)}
+  `;
+}
+
+$("reviewPane").onclick = async e => {
+  const b = e.target.closest("button");
+
+  if (!b || b.id === "rv_list") {
+    return;
+  }
+
+  const token = $("rv_tok").value;
+
+  if (b.dataset.open) {
+    const j = await api(
+      "/api/reviewer/detail",
+      {id:Number(b.dataset.open)},
+      token
+    );
+
+    if (j.error) {
+      $("rv_msg").textContent = j.error;
+      return;
+    }
+
+    reviewData = j;
+    comparison = null;
+    requestItems = [];
+
+    drawReviewer();
+    return;
+  }
+
+  if (!reviewData) {
+    return;
+  }
+
+  const id = reviewData.submission.id;
+
+  const msg = t => {
+    if ($("actionMsg")) {
+      $("actionMsg").textContent = t;
+    }
+  };
+
+  if (b.dataset.remove !== undefined) {
+    requestItems.splice(Number(b.dataset.remove), 1);
+    drawReviewer();
+    return;
+  }
+
+  const act = b.dataset.act;
+
+  if (act === "add") {
+    const reason = $("requestReason").value.trim();
+
+    if (reason.length < 5) {
+      msg("사유를 5자 이상 입력하세요.");
+      return;
+    }
+
+    const field = $("requestField").value;
+
+    if (requestItems.some(x => x.field === field)) {
+      msg("같은 항목은 하나의 요청에 사유를 정리해 주세요.");
+      return;
+    }
+
+    requestItems.push({ field, reason });
+    drawReviewer();
+    return;
+  }
+
+  let j;
+  b.disabled = true;
+
+  if (act === "analyze") {
+    msg("분석·비교 중…");
+
+    j = await api(
+      "/api/reviewer/analyze",
+      { id },
+      token
+    );
+
+    if (!j.error) {
+      comparison = j;
+    }
+
+  } else if (act === "send") {
+    j = await api(
+      "/api/reviewer/request-revision",
+      {
+        id,
+        items:requestItems
+      },
+      token
+    );
+
+    if (!j.error) {
+      reviewData = j;
+      requestItems = [];
+    }
+
+  } else if (b.dataset.state) {
+    j = await api(
+      "/api/reviewer/status",
+      {
+        id,
+        status:b.dataset.state
+      },
+      token
+    );
+
+    if (!j.error) {
+      reviewData = j;
+    }
+
+  } else {
+    b.disabled = false;
+    return;
+  }
+
+  if (j.error) {
+    b.disabled = false;
+    msg(j.error);
+    return;
+  }
+
+  drawReviewer();
+
+  msg(
+    act === "send"
+      ? "수정 요청을 등록했습니다. 작성자는 제출 번호와 코드로 확인합니다."
+      : "처리했습니다."
+  );
+
+  if (act !== "analyze") {
+    reviewerList();
+  }
+};
+
+/* ---------- 분석 기준 ---------- */
+
+(async () => {
+  const d = await api("/api/criteria");
+
+  if (d.error) {
+    $("crit").textContent =
+      "기준 정보를 불러오지 못했습니다.";
+    return;
+  }
+
+  $("crit").innerHTML = `
+    <p>
+      현재 기준 버전: <b>${esc(d.version)}</b>
+    </p>
+
+    ${list((d.policy || []).map(esc))}
+
+    <h3>변경 이력</h3>
+
+    ${list((d.changelog || []).map(c => `
+      <b>${esc(c.version)}</b>
+      (${esc(c.date)})
+      ${esc(c.change)}
+
+      <p class="small">
+        출처: ${esc(c.source)}
+        · 한계: ${esc(c.limit)}
+      </p>
+    `))}
+
+    <p>
+      검토 중:
+      ${esc(
+        (d.watchlist || []).join(", ")
+        || "등록 없음"
+      )}
+    </p>
+
+    <p class="notice">
+      ${esc(
+        d.automation
+        || "새 도구 자동 조사·자동 기준 업데이트는 구현된 기능이 아닙니다."
+      )}
+    </p>
+  `;
+})();
+
+/* ---------- 초기 화면 ---------- */
+
+showView(
+  location.hash === "#author"
+    ? "author"
+    : location.hash === "#reviewer"
+      ? "reviewer"
+      : "user",
+  false
+);
 </script>
+
 </body>
 </html>
