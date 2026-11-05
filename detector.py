@@ -118,6 +118,7 @@ def llm_judge(sample):
     except Exception:
         return None
 
+STRONG_MIN_W = 0.8   # 이 배수 미만이면 강한 근거로 쳐 주지 않음
 COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별 충분도 가중치
 
 def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
@@ -127,8 +128,11 @@ def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
     ai_pts = min(70, sum(pts(s) for s in sigs if s["side"] == "ai"))
     h_pts = min(50, sum(pts(s) for s in sigs if s["side"] == "human"))
     rule = 30 + ai_pts - h_pts                      # 30 = 임의의 사전값(prior), 실제 데이터로 보정 필요
-    strong_ai = any(s["side"] == "ai" and s["strength"] == "strong" for s in sigs)
-    strong_h = any(s["side"] == "human" and s["strength"] == "strong" for s in sigs)
+    # 심사자 판정으로 배수가 0.8 아래로 떨어진(=자주 틀린) 강한 근거는 '점수 고정(85/20)' 대상에서 뺀다.
+    # 안 그러면 오탐이 가장 큰 강한 근거만 보정을 피하게 된다.
+    ok_strong = lambda s: s["strength"] == "strong" and w.get(sig_key(s), 1.0) >= STRONG_MIN_W
+    strong_ai = any(s["side"] == "ai" and ok_strong(s) for s in sigs)
+    strong_h = any(s["side"] == "human" and ok_strong(s) for s in sigs)
     strong = strong_ai or strong_h                  # 어느 쪽이든 강한 근거가 있는가
     ai = rule if llm is None else 0.85 * rule + 0.15 * llm["ai_likelihood"]
     if strong_ai and strong_h: ai = 55               # 양쪽 강한 근거 -> 혼합
