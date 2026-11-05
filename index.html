@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>APP TRUST AI · 앱 심사 보조 도구</title>
+<meta name="description" content="앱의 AI 활용 흔적과 완성도를 근거와 함께 보여 주는 앱 심사 보조 도구. 정밀 심사가 필요한 앱을 먼저 가려내도록 돕습니다.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="APP TRUST AI · 앱 심사 보조 도구">
+<meta property="og:description" content="앱 이름만 넣으면 공개 정보에서 AI 사용 흔적과 완성도를 근거와 함께 보여 줍니다.">
+<meta name="theme-color" content="#111111">
 <style>
 :root{--ink:#111111;--sub:#6b6b6b;--line:#e5e5e5;--acc:#111111;--acc2:#333333;--bg:#f5f5f5;--ai:#111111;--hu:#111111}
 *{box-sizing:border-box}
@@ -228,7 +233,8 @@ function render(d){
   const cands = (d.candidates||[]).map(c =>
     `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
   const q = d.quality_score;
-  $("out").innerHTML = `
+  const saveWarn = d.saved===false ? `<div class="flag">⚠ 이번 결과는 저장되지 않았어요. 심사자 판정을 남길 수 없고 정확도에도 반영되지 않아요.</div>` : "";
+  $("out").innerHTML = saveWarn + `
   <div class="card">
     <div class="big">${esc(d.name)}</div>
     <div class="small">개발자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
