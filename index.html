@@ -134,14 +134,15 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
 
   <div class="card" id="batchCard">
     <h2>여러 앱 한꺼번에 분석 <span class="small">(최대 10개)</span></h2>
-    <textarea id="bq" rows="5" placeholder="앱 이름을 한 줄에 하나씩 적어 주세요&#10;예:&#10;카카오톡&#10;토스&#10;당근" style="width:100%;padding:12px;border:1.5px solid #cfcfcf;border-radius:10px;font-size:15px;font-family:inherit"></textarea>
-    <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap">
+      <input id="bq" type="text" placeholder="쉼표나 띄어쓰기로 구분해서 적어 주세요. 예: 카카오톡 토스 당근" autocomplete="off" style="flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit">
       <button id="bgo" type="button">일괄 분석</button>
-      <span id="bmsg" class="small"></span>
     </div>
+    <div style="margin-top:10px"><span id="bmsg" class="small">앱 이름 사이에 쉼표(,)나 띄어쓰기를 넣으면 최대 10개까지 한 번에 분석해요.</span></div>
     <div id="bout" style="margin-top:14px;overflow-x:auto"></div>
   </div>
 
+  <label class="small" style="display:flex;gap:8px;align-items:center;font-weight:500;margin:0 0 10px"><input type="checkbox" id="blind" style="width:auto"> 블라인드 모드: 판정을 남기기 전까지 도구의 점수·판정을 가려요 (판정이 도구에 끌려가지 않게)</label>
   <div id="out"></div>
 
   <div class="card" id="statsCard" style="margin-top:28px">
@@ -233,11 +234,13 @@ function render(d){
   const cands = (d.candidates||[]).map(c =>
     `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
   const q = d.quality_score;
+  const blindOn = $("blind").checked && !!d.analysis_id;     // 저장이 안 된 결과는 판정을 남길 수 없으니 가리지 않는다
   const saveWarn = d.saved===false ? `<div class="flag">⚠ 이번 결과는 저장되지 않았어요. 심사자 판정을 남길 수 없고 정확도에도 반영되지 않아요.</div>` : "";
   $("out").innerHTML = saveWarn + `
   <div class="card">
     <div class="big">${esc(d.name)}</div>
     <div class="small">개발자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
+    <div id="blindbox" style="${blindOn?"display:none":""}">
     <div class="scores">
       <div class="score">${ring(d.ai_score,"#111111")}<span>AI 생성 가능성</span></div>
       <div class="score">${ring(q==null?0:q,"#6b6b6b")}<span>엔지니어링 완성도${q==null?" (자료 없음)":""}</span></div>
@@ -246,6 +249,8 @@ function render(d){
     <p class="big">${esc(d.verdict)}</p>
     <span class="badge">${esc(d.triage)}</span>
     ${d.declaration_flag?`<div class="flag">⚠ ${esc(d.declaration_flag)}</div>`:""}
+    </div>
+    ${blindOn?`<div class="flag" id="blindnote">🙈 블라인드 모드예요. 아래 근거를 보고 먼저 판정을 저장하면 도구의 점수와 판정이 공개돼요.</div>`:""}
   </div>
   <div class="two">
     <div class="card"><h2>판단 근거</h2><ul>${sigs}</ul></div>
@@ -260,7 +265,7 @@ function render(d){
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 앱</option><option value="mixed">혼합</option><option value="human">직접 개발</option></select>
       <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
-      <input id="tok" type="password" placeholder="심사자 코드 (정한 경우)" value="${esc(localStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
+      <input id="tok" type="password" placeholder="심사자 코드" value="${esc(sessionStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
       <button id="rv" data-id="${d.analysis_id}">저장</button>
     </div>
     <p id="rvmsg" class="small"></p></div>`:""}
@@ -301,12 +306,12 @@ $("out").addEventListener("click", async e => {
   if(b.id === "rv"){
     b.disabled = true;
     try{
-      localStorage.setItem("rvtok", $("tok").value);
+      sessionStorage.setItem("rvtok", $("tok").value);
       const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json","x-reviewer-token":$("tok").value},
         body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
       const j = await r.json();
       $("rvmsg").textContent = j.ok ? "저장했어요. 정확도에 반영돼요." : ("저장 실패: " + (j.error || "입력값을 확인해 주세요"));
-      if(j.ok) loadStats();
+      if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
     }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
     b.disabled = false;
   } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
@@ -324,7 +329,7 @@ function drawBatch(){
     }).join("") + `</table>`;
 }
 $("bgo").addEventListener("click", async () => {
-  const lines = [...new Set($("bq").value.split("\n").map(x=>x.trim()).filter(Boolean))];
+  const lines = [...new Set($("bq").value.split(/[\s,，、;]+/).map(x=>x.trim()).filter(Boolean))];
   if(!lines.length){ $("bq").focus(); return; }
   if(lines.length > BMAX){ $("bmsg").textContent = `한 번에 ${BMAX}개까지만 가능해요. (지금 ${lines.length}개)`; return; }
   $("bgo").disabled = true;
@@ -343,6 +348,7 @@ $("bgo").addEventListener("click", async () => {
   }catch(e){ $("bmsg").textContent = "요청에 실패했어요: " + e.message; }
   $("bgo").disabled = false;
 });
+$("bq").addEventListener("keydown", e => { if(e.key==="Enter") $("bgo").click(); });
 $("bout").addEventListener("click", e => {
   const b = e.target.closest("button[data-bi]"); if(!b) return;
   const r = batchRows[Number(b.dataset.bi)];
