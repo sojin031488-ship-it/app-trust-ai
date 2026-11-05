@@ -6,14 +6,20 @@
 
 <title>APP TRUST AI · 앱 신뢰 정보 분석</title>
 <meta name="description" content="공개 근거 기반 개발 방식·완성도 분석">
+<meta name="theme-color" content="#00457E">
 
 <style>
 :root {
-  --ink:#173039;
-  --sub:#526870;
-  --line:#d9e5e7;
-  --acc:#0e6674;
-  --bg:#f4f8f9;
+  --ink:#183047;
+  --sub:#52677c;
+  --line:#d8e3ed;
+
+  /* 메인 색상 */
+  --acc:#00457E;
+
+  --bg:#f4f7fb;
+  --soft:#eef5fb;
+  --soft-blue:#e5eff9;
 }
 
 * {
@@ -46,6 +52,10 @@ button {
   font-weight:700;
 }
 
+button:hover:not(:disabled) {
+  filter:brightness(.94);
+}
+
 button:disabled {
   opacity:.55;
   cursor:wait;
@@ -58,7 +68,7 @@ button.ghost {
 
 input,select,textarea {
   width:100%;
-  border:1px solid #9fb5bc;
+  border:1px solid #a2b7cb;
   border-radius:9px;
   background:white;
   padding:11px;
@@ -77,6 +87,7 @@ label {
 
 input[type=checkbox] {
   width:auto;
+  accent-color:var(--acc);
 }
 
 button:focus-visible,
@@ -84,7 +95,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline:3px solid #bc761e;
+  outline:3px solid #c08020;
   outline-offset:3px;
 }
 
@@ -100,7 +111,7 @@ textarea:focus-visible {
 
 /* 상단 소개 */
 .hero {
-  background:#123e48;
+  background:var(--acc);
   color:white;
   padding:28px 0 34px;
 }
@@ -120,11 +131,11 @@ textarea:focus-visible {
 
 .hero p {
   margin:0;
-  color:#deedef;
+  color:#e0ecf7;
   font-size:16px;
 }
 
-/* 사용자별 탭 */
+/* 화면 전환 */
 .row,.tabs {
   display:flex;
   gap:12px;
@@ -185,6 +196,7 @@ h3 {
   font-size:17px;
 }
 
+/* 안내·오류 */
 .notice,.error {
   padding:12px;
   border-radius:9px;
@@ -203,7 +215,7 @@ h3 {
   color:#852b24;
 }
 
-/* 분석 점수 */
+/* 점수 */
 .scores {
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -213,7 +225,7 @@ h3 {
 .score {
   padding:15px;
   border-left:4px solid var(--acc);
-  background:#f1f7f8;
+  background:var(--soft);
 }
 
 .num {
@@ -223,7 +235,7 @@ h3 {
 
 .meter {
   height:9px;
-  background:#dce8eb;
+  background:#d9e5f0;
   border-radius:6px;
   overflow:hidden;
   margin:8px 0;
@@ -235,6 +247,7 @@ h3 {
   background:var(--acc);
 }
 
+/* 근거 강도 */
 .tag {
   display:inline-block;
   border-radius:5px;
@@ -244,26 +257,26 @@ h3 {
 }
 
 .strong {
-  background:#145a65;
+  background:var(--acc);
   color:white;
 }
 
 .medium {
-  background:#dcecef;
-  color:#17434c;
+  background:#dce9f6;
+  color:#00457E;
 }
 
 .weak {
-  background:#f0f4f5;
-  color:#455d65;
-  border:1px dashed #8a9fa5;
+  background:#f0f4f8;
+  color:#485e73;
+  border:1px dashed #8ba2b9;
 }
 
 .badge {
   display:inline-block;
   padding:4px 10px;
-  background:#e4f1f3;
-  color:#124b55;
+  background:var(--soft-blue);
+  color:var(--acc);
   border-radius:20px;
   font-size:13px;
 }
@@ -287,7 +300,7 @@ th,td {
 }
 
 th {
-  background:#f1f6f7;
+  background:var(--soft);
 }
 
 /* 스토어 결과 */
@@ -356,6 +369,7 @@ li {
   color:var(--acc);
 }
 
+/* 모바일 */
 @media(max-width:600px) {
   .wrap {
     padding:0 14px;
@@ -426,7 +440,6 @@ li {
 
 <main class="wrap">
 
-  <!-- 기능 이동용 탭 -->
   <nav class="tabs" aria-label="이용 목적 선택">
     <button
       id="nav-user"
@@ -643,7 +656,6 @@ li {
     </div>
   </section>
 
-  <!-- 기존 분석 기준 정보 유지 -->
   <section class="card">
     <h2>분석 기준과 업데이트 원칙</h2>
     <div id="crit">불러오는 중…</div>
@@ -675,6 +687,7 @@ const esc = v => String(v ?? "").replace(
 const safeURL = v => {
   try {
     const u = new URL(v);
+
     return ["https:", "http:"].includes(u.protocol)
       ? u.href
       : "";
