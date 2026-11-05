@@ -1,16 +1,37 @@
 """자료 수집(IO): 앱 이름 -> App Store 정보 -> 개발사 사이트 -> GitHub -> (선택) 웹 리서치
 표준 라이브러리만 사용하므로 Playwright 설치 없이 동작합니다."""
-import difflib, json, os, re, urllib.error, urllib.parse, urllib.request
+import difflib, ipaddress, json, os, re, socket, urllib.error, urllib.parse, urllib.request
 from urllib.parse import quote, urljoin, urlparse
 import detector as D
 
 UA = "Mozilla/5.0 (AppTrustAI prototype)"
 norm = lambda s: re.sub(r"[\W_]+", "", (s or "").lower())
 
+def is_public_url(url):
+    """SSRF 방지: http/https 이고, 주소가 공용 인터넷(내부망/로컬/메타데이터 주소 아님)일 때만 True"""
+    try:
+        u = urlparse(url)
+        if u.scheme not in ("http", "https") or not u.hostname: return False
+        for info in socket.getaddrinfo(u.hostname, u.port or (443 if u.scheme == "https" else 80), proto=socket.IPPROTO_TCP):
+            ip = ipaddress.ip_address(info[4][0])
+            if not ip.is_global: return False        # 사설망, 127.0.0.1, 169.254.x.x(클라우드 메타데이터) 등
+        return True
+    except Exception:
+        return False
+
+class _SafeRedirect(urllib.request.HTTPRedirectHandler):
+    """리다이렉트로 내부 주소에 우회 접근하는 것도 막는다"""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not is_public_url(newurl): raise urllib.error.URLError("blocked redirect")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+_opener = urllib.request.build_opener(_SafeRedirect)
+
 def http_get(url, headers=None, timeout=6, max_bytes=800_000):
+    if not is_public_url(url): return 0, {}, ""         # 공용 주소가 아니면 아예 요청하지 않는다
     req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with _opener.open(req, timeout=timeout) as r:
             return r.status, {k.lower(): v for k, v in r.headers.items()}, r.read(max_bytes).decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
         return e.code, {k.lower(): v for k, v in e.headers.items()}, ""
@@ -87,11 +108,18 @@ def fetch_repo(repo_url):
                          "author": c["commit"]["author"]["name"] or "", "login": (c.get("author") or {}).get("login", "")}
                         for c in commits if isinstance(c, dict)]}
 
-def github_candidates(app_name):
-    d = http_json(f"https://api.github.com/search/repositories?q={quote(app_name + ' in:name,description')}&per_page=5",
+def github_candidates(app_name, seller=""):
+    """이름 검색으로 나온 저장소 중 앱 이름/개발자와 관련 있어 보이는 것만 남긴다 (확정이 아니라 '후보')"""
+    d = http_json(f"https://api.github.com/search/repositories?q={quote(app_name + ' in:name,description')}&per_page=10",
                   {"Accept": "application/vnd.github+json"})
-    return [{"url": r["html_url"], "desc": (r.get("description") or "")[:80], "stars": r.get("stargazers_count", 0)}
-            for r in (d or {}).get("items", [])]
+    nm, sl = norm(app_name), norm(seller)
+    out = []
+    for r in (d or {}).get("items", []):
+        repo_name, owner = norm(r.get("name")), norm((r.get("owner") or {}).get("login"))
+        related = (len(nm) >= 3 and nm in repo_name) or (len(sl) >= 3 and (sl in owner or owner in sl))
+        if related:
+            out.append({"url": r["html_url"], "desc": (r.get("description") or "")[:80], "stars": r.get("stargazers_count", 0)})
+    return out[:3]
 
 # ---------- 웹 리서치 (선택: ANTHROPIC_API_KEY 필요) ----------
 def web_research(name, seller, store_url):
@@ -151,21 +179,29 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None):
     pool = (site["html"] if site else "") + " " + ((store or {}).get("description") or "")
     linked = [f"https://github.com/{o}/{n}" for o, n in re.findall(r"github\.com/([\w.-]+)/([\w.-]+)", pool)
               if o.lower() not in ("sponsors", "features", "orgs", "topics", "apps")]
-    if not repo_url and linked: repo_url = linked[0]; steps.append({"label": "개발자 페이지에 링크된 GitHub", "detail": repo_url, "url": repo_url})
+    linked = list(dict.fromkeys(linked))[:3]
+    # 수정: 페이지에 링크된 GitHub 주소를 자동으로 '이 앱의 저장소'로 단정하지 않는다.
+    # 라이브러리 링크일 수도 있으므로 후보로만 보여 주고, 확정은 사용자가 직접 주소를 넣어야 한다.
     if repo_url:
         repo = fetch_repo(repo_url)
         if repo:
             sources.add("repo"); s, q = D.repo_signals(repo); sigs += s; checks += q
             steps.append({"label": "GitHub 저장소 분석", "detail": f"파일 {len(repo['names'])}개, 커밋 {len(repo['commits'])}건", "url": repo_url})
-        else: notes.append(f"저장소를 읽지 못함 (비공개/주소 오류/API 한도): {repo_url}")
+        else: notes.append("저장소를 읽지 못함 (비공개/주소 오류/API 한도)")
 
-    unconfirmed = [] if repo else github_candidates(name) if store else []
+    unconfirmed = []
+    if not repo:
+        unconfirmed = [{"url": u, "desc": "개발자 페이지에 링크됨 (이 앱의 저장소인지 확인 필요)", "stars": None} for u in linked]
+        if store:
+            unconfirmed += [x for x in github_candidates(name, seller) if x["url"] not in {u["url"] for u in unconfirmed}]
     res, note = web_research(name, seller, (store or {}).get("trackViewUrl", "")) if (store or site or repo) else (None, None)
     if note: notes.append(note)
     if res:
         sources.add("research"); sigs += D.research_signals(res)
         steps.append({"label": "웹 리서치", "detail": (res.get("developer_background") or "개발자 배경 정보 없음")[:120], "url": None})
-        if not repo and res.get("github_repo"): unconfirmed.insert(0, {"url": res["github_repo"], "desc": "웹 리서치에서 발견", "stars": None})
+        gr = res.get("github_repo")
+        if not repo and isinstance(gr, str) and re.match(r"https://github\.com/[\w.-]+/[\w.-]+", gr) and gr not in {u["url"] for u in unconfirmed}:
+            unconfirmed.insert(0, {"url": gr, "desc": "웹 리서치에서 발견 (확인 필요)", "stars": None})
     if not sources:
         return {"name": name, "error": "분석할 자료를 찾지 못했습니다. " + " / ".join(notes)}
 
