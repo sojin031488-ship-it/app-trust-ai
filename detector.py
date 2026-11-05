@@ -84,7 +84,7 @@ def repo_signals(repo):
         span = (ds[-1] - ds[0]).days if ds else None
     except Exception: pass
     if n >= 3 and span is not None and span <= 2:
-        sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (해커톤 프로젝트면 정상)", "repo"))
+        sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (소규모 프로젝트면 정상일 수 있음)", "repo"))
     if n >= 50 and span is not None and span >= 30:
         sig.append(S("human", "medium", f"{span}일에 걸친 꾸준한 커밋 이력 ({n}건+)", "repo"))
     if len({c["login"] or c["author"] for c in cm}) >= 2:
