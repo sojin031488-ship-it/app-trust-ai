@@ -127,12 +127,15 @@ def evaluate(sigs, checks, sources, llm, declared_ai):
     qual = round(100 * sum(w for _, ok, w in checks if ok) / max(1, sum(w for *_, w in checks))) if checks else None
     cov = sum(COV[k] for k in sources) + (5 if llm else 0)
     conf = "높음" if cov >= 60 else "보통" if cov >= 35 else "낮음"
-    if conf == "낮음" and not strong: verdict = "판단 보류 (근거 부족)"
+    # 수정: 증거(signals)가 하나도 없으면 '직접 제작'이라고 단정하지 않고 판단 보류
+    hold = (conf == "낮음" or not sigs) and not strong
+    if hold: verdict = "판단 보류 (근거 부족)"
     elif ai >= 70: verdict = "AI 도구 사용 가능성 높음 (바이브코딩 의심)"
     elif ai >= 40: verdict = "AI 보조 개발 가능성 (혼합)"
     else: verdict = "개발자 직접 제작 가능성 높음"
     q = qual if qual is not None else 50
-    if ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
+    if hold: triage = "근거 부족 → 심사자가 직접 확인"
+    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
     elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 심사 우선"
     elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 통과"
     else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 요청"
@@ -175,4 +178,3 @@ def research_signals(r):
         return [S("ai", "strong", f"공개 자료에서 AI 도구 사용 언급: {ms[0]['claim'][:90]} (출처: {ms[0]['source_url']})", "research")]
     if ms: return [S("ai", "medium", f"AI 도구 관련 언급 {len(ms)}건 발견 (제작 방식에 대한 언급인지 출처 확인 필요)", "research")]
     return []
-
