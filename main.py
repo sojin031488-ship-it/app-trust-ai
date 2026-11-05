@@ -13,7 +13,7 @@ import traceback
 from typing import Literal
 from concurrent.futures import ThreadPoolExecutor, wait
 from fastapi import FastAPI, Header, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 import collect
 import detector as D
@@ -63,20 +63,23 @@ class Review(BaseModel):
 CACHE = {"at": 0.0, "rows": []}
 
 def load_rows():
-    """심사자 판정 + 그 분석의 점수/근거. 10분 동안은 저장해 둔 값을 쓴다."""
+    """심사자 판정 + 그 분석의 점수/근거. 같은 앱은 가장 최근 판정 1건만 쓴다. 10분 동안은 저장해 둔 값을 쓴다."""
     if not sb: return []
     if time.time() - CACHE["at"] < 600: return CACHE["rows"]
-    rows = []
+    latest = {}
     try:
         data = sb.table("reviews").select(
-            "reviewer_label, analyses(ai_score, verdict, signals)").limit(5000).execute().data or []
-        for d in data:
+            "id, reviewer_label, analyses(app_name, seller, ai_score, verdict, signals)"
+        ).order("id").limit(5000).execute().data or []
+        for d in data:                    # id 순서(오래된 것 먼저)로 덮어써서 '앱마다 가장 최근 판정 1건'만 남긴다
             a = d.get("analyses") or {}
-            rows.append({"label": d["reviewer_label"], "signals": a.get("signals") or [],
-                         "ai_score": a.get("ai_score"), "verdict": a.get("verdict")})
+            key = (a.get("app_name") or "", a.get("seller") or "") if a.get("app_name") else ("#", d["id"])
+            latest[key] = {"label": d["reviewer_label"], "signals": a.get("signals") or [],
+                           "ai_score": a.get("ai_score"), "verdict": a.get("verdict")}
     except Exception:
         traceback.print_exc()
         return CACHE["rows"]             # 실패하면 이전 값을 그대로 쓴다
+    rows = list(latest.values())
     CACHE["at"], CACHE["rows"] = time.time(), rows
     return rows
 
@@ -104,9 +107,9 @@ def too_many(request: Request, n: int = 1) -> bool:
 class Batch(BaseModel):
     queries: list[str]
 
-def analyze_one(q: Q):
+def analyze_one(q: Q, research: bool = True):
     try:
-        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights())
+        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights(), research)
         if sb and "error" not in r:
             try:
                 row = sb.table("analyses").insert({
@@ -135,7 +138,7 @@ def search(q: Q, request: Request):
 
 @app.post("/api/batch")
 def batch(b: Batch, request: Request):
-    """앱 이름 여러 개(최대 10개)를 동시에 분석해 심사 우선순위 순으로 돌려준다."""
+    """앱 이름 여러 개(최대 10개)를 동시에 분석해 심사 우선순위 순으로 돌려준다. (웹 리서치는 생략)"""
     names = []
     for x in b.queries:
         x = (x or "").strip()[:100]
@@ -147,7 +150,7 @@ def batch(b: Batch, request: Request):
     if too_many(request, len(names)):
         return JSONResponse({"error": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요."}, status_code=429)
     ex = ThreadPoolExecutor(max_workers=BATCH_WORKERS)
-    futs = {n: ex.submit(analyze_one, Q(query=n)) for n in names}
+    futs = {n: ex.submit(analyze_one, Q(query=n), False) for n in names}
     wait(list(futs.values()), timeout=BATCH_BUDGET)
     ex.shutdown(wait=False, cancel_futures=True)
     items = []
@@ -191,6 +194,10 @@ def stats():
         [{"key": k, "n": v["n"], "precision": v["precision"], "weight": v["weight"]} for k, v in w.items()],
         key=lambda x: -x["n"])[:12]
     return rep
+
+@app.get("/robots.txt")
+def robots():
+    return PlainTextResponse("User-agent: *\nAllow: /\nDisallow: /api/\n")
 
 @app.get("/api/health")
 def health(): return {"ok": True, "db": sb is not None}
