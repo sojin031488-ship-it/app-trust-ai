@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>APP TRUST AI · 해커톤 제출작 심사 보조 도구</title>
-<meta name="description" content="해커톤·공모전 제출작의 AI 활용 흔적과 완성도 신호를 근거와 함께 보여 주는 심사 보조 도구. 정밀 검토가 필요한 제출작을 먼저 가려냅니다.">
+<title>APP TRUST AI · 앱이 AI로 만들어졌는지 직접 개발했는지, 근거와 함께 보여 주는 앱 심사 보조 도구</title>
+<meta name="description" content="앱의 AI 활용 흔적과 완성도 신호를 근거와 함께 보여 주는 앱 심사 보조 도구. 정밀 심사가 필요한 앱을 먼저 가려내도록 돕습니다.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="APP TRUST AI · 해커톤 제출작 심사 보조 도구">
-<meta property="og:description" content="제출작의 깃허브·배포 주소만 넣으면 AI 사용 흔적과 완성도 신호를 근거와 함께 보여 줍니다.">
+<meta property="og:title" content="APP TRUST AI · 앱이 AI로 만들어졌는지 직접 개발했는지, 근거와 함께 보여 주는 앱 심사 보조 도구">
+<meta property="og:description" content="앱 이름만 넣으면 공개 정보에서 AI 사용 흔적과 완성도 신호를 근거와 함께 보여 줍니다.">
 <meta name="theme-color" content="#111111">
 <style>
 :root{--ink:#111111;--sub:#6b6b6b;--line:#e5e5e5;--acc:#111111;--acc2:#333333;--bg:#f5f5f5;--ai:#111111;--hu:#111111}
@@ -99,9 +99,9 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
   <div class="wrap">
     <div>
       <nav><b>APP TRUST AI</b></nav>
-      <span class="pill">해커톤 심사 보조 도구</span><span class="pill">공개 정보만 사용</span>
-      <h1>이 제출작, AI가 만들었을까?<br>근거와 함께 확인하세요</h1>
-      <p>제출작의 깃허브나 배포 주소를 넣으면 AI 사용 흔적과 완성도 신호를 함께 분석해서, 어떤 제출작을 먼저 정밀 검토할지 알려 드립니다.</p>
+      <span class="pill">앱 심사 보조 도구</span><span class="pill">공개 정보만 사용</span>
+      <h1>앱이 AI로 만들어졌는지<br>직접 개발했는지, 근거와 함께</h1>
+      <p>앱 심사자가 AI로 대량 제작된 앱과 직접 개발한 앱을 일일이 조사해 구분하는 데 시간이 많이 들고 기준도 제각각입니다. 공개 정보에서 AI 사용 흔적과 완성도를 근거와 함께 보여 주어, 정밀 심사가 필요한 앱을 먼저 가려내도록 돕습니다.</p>
       <a class="cta" href="#finder">지금 분석해 보기</a>
     </div>
   </div>
@@ -109,21 +109,21 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
 
 <main class="wrap">
   <div class="card finder" id="finder">
-    <label for="q" style="font-size:16px">분석할 제출작 주소 (깃허브 또는 배포 URL)</label>
+    <label for="q" style="font-size:16px">분석할 앱 이름</label>
     <div class="row">
-      <input id="q" type="text" placeholder="예: https://github.com/아이디/저장소 또는 https://내서비스.vercel.app" autocomplete="off">
+      <input id="q" type="text" placeholder="예: 카카오톡" autocomplete="off">
       <button id="go">분석하기</button>
     </div>
-    <button class="adv-toggle" id="advBtn" type="button">＋ 깃허브 주소와 AI 사용 신고 내용도 함께 넣기 (선택)</button>
+    <button class="adv-toggle" id="advBtn" type="button">＋ 더 정확하게 분석하고 싶어요 (선택)</button>
     <div id="adv">
       <div class="g">
         <div>
           <label for="repo">GitHub 저장소 주소</label>
-          <input id="repo" type="text" placeholder="https://github.com/아이디/저장소 (배포 주소를 넣었을 때 함께 분석)">
+          <input id="repo" type="text" placeholder="https://github.com/아이디/저장소">
           <p class="hint">코드 저장소를 알고 있으면 넣어 주세요. 커밋 기록과 설정 파일까지 살펴봐서 더 정확해져요.</p>
         </div>
         <div>
-          <label for="decl">참가자가 신고한 AI 사용 여부</label>
+          <label for="decl">개발자가 신고한 AI 사용 여부</label>
           <select id="decl"><option value="">모름</option><option value="true">AI 사용함</option><option value="false">AI 사용 안 함</option></select>
           <p class="hint">신고 내용과 실제 흔적이 다르면 알려 드려요.</p>
         </div>
@@ -133,12 +133,12 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
   </div>
 
   <div class="card" id="batchCard">
-    <h2>여러 제출작 한꺼번에 분석 <span class="small">(최대 10개)</span></h2>
+    <h2>여러 앱 한꺼번에 분석 <span class="small">(최대 10개)</span></h2>
     <div class="row" style="display:flex;gap:10px;flex-wrap:wrap">
-      <input id="bq" type="text" placeholder="주소를 쉼표나 띄어쓰기로 구분해서 적어 주세요. 예: https://github.com/a/b https://github.com/c/d" autocomplete="off" style="flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit">
+      <input id="bq" type="text" placeholder="쉼표나 띄어쓰기로 구분해서 적어 주세요. 예: 카카오톡 토스 당근" autocomplete="off" style="flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit">
       <button id="bgo" type="button">일괄 분석</button>
     </div>
-    <div style="margin-top:10px"><span id="bmsg" class="small">주소(또는 앱 이름) 사이에 쉼표(,)나 띄어쓰기를 넣으면 최대 10개까지 한 번에 분석해요.</span></div>
+    <div style="margin-top:10px"><span id="bmsg" class="small">앱 이름 사이에 쉼표(,)나 띄어쓰기를 넣으면 최대 10개까지 한 번에 분석해요.</span></div>
     <div id="bout" style="margin-top:14px;overflow-x:auto"></div>
   </div>
 
@@ -154,17 +154,17 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
     <h2 class="t">이렇게 분석해요</h2>
     <p class="lead">공개된 정보만 읽고, 판결이 아니라 근거를 보여 드립니다.</p>
     <div class="steps">
-      <div class="step"><div class="n">1</div><h3>자료 모으기</h3><p>코드 저장소, 배포된 웹사이트, 앱스토어 정보를 차례로 확인해요.</p></div>
+      <div class="step"><div class="n">1</div><h3>자료 모으기</h3><p>앱스토어 정보, 개발사 웹사이트, 코드 저장소를 차례로 확인해요.</p></div>
       <div class="step"><div class="n">2</div><h3>흔적 찾기</h3><p>AI 도구 설정 파일, 커밋 기록, 기본 템플릿 흔적 같은 단서를 강·중·약으로 나눠요.</p></div>
       <div class="step"><div class="n">3</div><h3>두 가지 점수</h3><p>AI 생성 가능성과 공개 자료 기준 완성도 신호를 따로 계산해요.</p></div>
-      <div class="step"><div class="n">4</div><h3>심사 순서 제안</h3><p>두 점수를 조합해서 어떤 제출작을 먼저 볼지 분류해요.</p></div>
+      <div class="step"><div class="n">4</div><h3>심사 순서 제안</h3><p>두 점수를 조합해서 어떤 앱을 먼저 볼지 분류해요.</p></div>
     </div>
 
   </section>
 </main>
 
 <footer>
-  결과는 확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 참가자 소명을 받으세요.<br>© APP TRUST AI
+  결과는 확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 개발자 소명을 받으세요.<br>© APP TRUST AI
 </footer>
 
 <script>
@@ -174,7 +174,7 @@ const SL = {strong:"강", medium:"중", weak:"약"};
 
 $("advBtn").addEventListener("click", () => {
   const on = $("adv").classList.toggle("on");
-  $("advBtn").textContent = on ? "－ 선택 옵션 닫기" : "＋ 깃허브 주소와 AI 사용 신고 내용도 함께 넣기 (선택)";
+  $("advBtn").textContent = on ? "－ 선택 옵션 닫기" : "＋ 더 정확하게 분석하고 싶어요 (선택)";
 });
 
 async function analyze(trackId){
@@ -195,7 +195,7 @@ async function analyze(trackId){
     catch(_){
       $("out").innerHTML = `<div class="err"><b>서버가 올바른 답을 주지 못했어요. (상태 코드 ${res.status})</b><br>
         <span class="small">서버가 보낸 내용: ${esc(txt.slice(0,300))}</span><br>
-        시간 초과일 가능성이 높아요. 주소를 확인해 다시 시도하거나 잠시 뒤 다시 눌러 보세요.</div>`;
+        시간 초과일 가능성이 높아요. 앱 이름을 바꿔 다시 시도하거나 잠시 뒤 다시 눌러 보세요.</div>`;
       data = null;
     }
     if(data) render(data);
@@ -222,12 +222,18 @@ function render(d){
   const cands = (d.candidates||[]).map(c =>
     `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
   const q = d.quality_score;
+  const A = d.ai_summary;
+  const aiBox = A ? `<div class="card" id="aibox" style="${$("blind").checked && !!d.analysis_id ? "display:none" : ""}"><h2>AI 심사 요약 <span class="small">(위 근거만 읽고 정리한 글이에요. 확정 판결이 아니에요)</span></h2>
+      <p>${esc(A.summary)}</p>
+      ${A.check_first?`<p><b>먼저 확인할 것</b><br>${esc(A.check_first)}</p>`:""}
+      ${(A.questions||[]).length?`<p><b>개발자에게 물어볼 질문</b></p><ul>${A.questions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>`
+    : (d.analysis_id !== undefined || d.verdict ? `<div class="card small">AI 심사 요약은 한 앱씩 분석할 때, 서버에 AI 키가 설정되어 있으면 표시돼요.</div>` : "");
   const blindOn = $("blind").checked && !!d.analysis_id;     // 저장이 안 된 결과는 판정을 남길 수 없으니 가리지 않는다
   const saveWarn = d.saved===false ? `<div class="flag">⚠ 이번 결과는 저장되지 않았어요. 심사자 판정을 남길 수 없고 정확도에도 반영되지 않아요.</div>` : "";
   $("out").innerHTML = saveWarn + `
   <div class="card">
     <div class="big">${esc(d.name)}</div>
-    <div class="small">제작자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
+    <div class="small">개발자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
     <div id="blindbox" style="${blindOn?"display:none":""}">
     <div class="scores">
       <div class="score">${ring(d.ai_score,"#111111")}<span>AI 생성 가능성</span></div>
@@ -240,18 +246,19 @@ function render(d){
     </div>
     ${blindOn?`<div class="flag" id="blindnote">🙈 블라인드 모드예요. 아래 근거를 보고 먼저 판정을 저장하면 도구의 점수와 판정이 공개돼요.</div>`:""}
   </div>
+  ${aiBox}
   <div class="two">
     <div class="card"><h2>판단 근거</h2><ul>${sigs}</ul></div>
     <div class="card"><h2>완성도 체크</h2><ul>${checks||"<li class='small'>항목 없음</li>"}</ul></div>
   </div>
   <div class="card"><h2>수집 과정</h2><ul>${steps}</ul>${notes?`<p class="small">참고</p><ul>${notes}</ul>`:""}
     ${repos?`<p class="small">확인되지 않은 GitHub 후보</p><ul>${repos}</ul>`:""}</div>
-  ${cands?`<div class="card"><h2>다른 앱스토어 앱 후보 <span class="small">(앱 이름으로 검색했을 때)</span></h2>${cands}</div>`:""}
+  ${cands?`<div class="card"><h2>다른 앱 후보</h2>${cands}</div>`:""}
   ${d.analysis_id?`
   <div class="card"><h2>심사자 최종 판단 기록</h2>
     <p class="small">기록이 쌓이면 점수 기준을 보정할 수 있어요.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 제출작</option><option value="mixed">혼합</option><option value="human">직접 개발한 제출작</option></select>
+      <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 앱</option><option value="mixed">혼합</option><option value="human">직접 개발</option></select>
       <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
       <input id="tok" type="password" placeholder="심사자 코드" value="${esc(sessionStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
       <button id="rv" data-id="${d.analysis_id}">저장</button>
@@ -260,7 +267,7 @@ function render(d){
   <p class="small">${esc(d.disclaimer||"")}</p>`;
 }
 
-const LB = {ai:"AI로 만든 제출작", mixed:"혼합", human:"직접 개발한 제출작"};
+const LB = {ai:"AI로 만든 앱", mixed:"혼합", human:"직접 개발"};
 async function loadStats(){
   const box = $("stats");
   try{
@@ -299,7 +306,7 @@ $("out").addEventListener("click", async e => {
         body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
       const j = await r.json();
       $("rvmsg").textContent = j.ok ? "저장했어요. 정확도에 반영돼요." : ("저장 실패: " + (j.error || "입력값을 확인해 주세요"));
-      if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
+      if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const ab=$("aibox"); if(ab) ab.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
     }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
     b.disabled = false;
   } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
