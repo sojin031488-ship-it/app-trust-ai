@@ -116,6 +116,7 @@ def web_research(name, seller, store_url):
 def run(query, track_id=None, repo_url=None, declared_ai=None):
     query, steps, notes, sigs, checks, sources = query.strip(), [], [], [], [], set()
     store, cands, site, repo, site_url, cc = None, [], None, None, None, "kr"
+    mismatch = False                                       # 검색어와 다른 앱이 잡혔는가
     if re.match(r"https?://", query):                       # URL을 직접 넣은 경우
         if "github.com" in query: repo_url = repo_url or query
         else: site_url = query
@@ -127,6 +128,7 @@ def run(query, track_id=None, repo_url=None, declared_ai=None):
         # 수정: 검색어와 이름이 많이 다른 앱이 잡히면 경고를 남긴다
         if store and norm(query) not in norm(store.get("trackName")) and \
                 difflib.SequenceMatcher(None, norm(query), norm(store.get("trackName"))).ratio() < 0.5:
+            mismatch = True
             notes.append(f"'{query}'와 이름이 비슷한 앱을 찾지 못했어요. 가장 가까운 '{store.get('trackName')}'로 분석했으니 맞는 앱인지 확인하세요. 영문 이름(예: Pieceful)으로도 검색해 보세요.")
     name = (store or {}).get("trackName") or query
     seller = (store or {}).get("sellerName", "")
@@ -167,12 +169,19 @@ def run(query, track_id=None, repo_url=None, declared_ai=None):
     if not sources:
         return {"name": name, "error": "분석할 자료를 찾지 못했습니다. " + " / ".join(notes)}
 
-    sample = {"store_description": ((store or {}).get("description") or "")[:1500],
+    st_ = store or {}
+    sample = {"store_meta": {"release_date": st_.get("releaseDate"), "last_update": st_.get("currentVersionReleaseDate"),
+                             "rating_count": st_.get("userRatingCount"), "languages": len(st_.get("languageCodesISO2A") or [])},
+              "web_research": (res or {}).get("mentions"),
+              "store_description": ((store or {}).get("description") or "")[:1500],
               "release_notes": ((store or {}).get("releaseNotes") or "")[:500],
               "readme": (repo or {}).get("readme", "")[:2000],
               "commit_messages": [c["msg"][:100] for c in (repo or {}).get("commits", [])[:15]],
               "page_text": (site or {}).get("text", "")[:1200]}
     out = D.evaluate(sigs, checks, sources, D.llm_judge(sample), declared_ai)
+    if mismatch:                                           # 엉뚱한 앱일 수 있으면 판정하지 않는다
+        out["verdict"] = "판단 보류 (검색한 앱과 다를 수 있음)"
+        out["triage"] = "검색한 앱이 맞는지 확인 필요 → 영문 이름으로 다시 검색"
     return {"name": name, "seller": seller, "steps": steps, "notes": notes, "unconfirmed_repos": unconfirmed,
             "candidates": [{"track_id": a.get("trackId"), "name": a.get("trackName"), "seller": a.get("sellerName")} for a in cands],
             "research": res, **out}
