@@ -1,10 +1,11 @@
-"""APP TRUST AI - 바이브코딩 판별 로직 (외부 의존성 없음, 단독 테스트 가능)
+"""APP TRUST AI - 앱 개발 방식 · 기술 완성도 · 신뢰 정보 분석 로직 (외부 의존성 없음, 단독 테스트 가능)
 
 핵심 아이디어
-1) 증거를 '강/중/약' 세기로 나눠 근거와 함께 제시 (판결이 아니라 심사 보조 지표)
-2) 두 축으로 평가: AI 생성 가능성 x 엔지니어링 완성도  ->  심사 분류 권고(triage)
+0) 원칙: AI를 썼다는 사실만으로 앱 품질을 낮게 평가하지 않는다. 개발 방식(참고 정보)과 기술 완성도(품질 신호)를 따로 보여 준다.
+1) 증거를 '강/중/약' 세기로 나눠 근거와 함께 제시 (판결이 아니라 참고 정보)
+2) 두 축을 따로 평가: AI 활용 흔적(개발 방식) / 기술 완성도(품질). 선택 가이드(triage)는 완성도와 근거 충분도로만 정한다
 3) 증거 충분도(신뢰도)를 따로 계산, 근거가 부족하면 '판단 보류'
-4) 개발자가 AI 사용을 공개했는지와 비교해 불일치를 표시 (앱스토어 정책 연계)
+4) 개발사가 밝힌 AI 사용 여부와 공개 흔적이 다르면 '표기 확인' 정보로만 표시
 """
 import json, os, re
 from datetime import datetime, timezone
@@ -84,7 +85,7 @@ def repo_signals(repo):
         span = (ds[-1] - ds[0]).days if ds else None
     except Exception: pass
     if n >= 3 and span is not None and span <= 2:
-        sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (소규모 프로젝트면 정상일 수 있음)", "repo"))
+        sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (짧은 기간에 만든 프로젝트일 수도 있음)", "repo"))
     if n >= 50 and span is not None and span >= 30:
         sig.append(S("human", "medium", f"{span}일에 걸친 꾸준한 커밋 이력 ({n}건+)", "repo"))
     if len({c["login"] or c["author"] for c in cm}) >= 2:
@@ -107,7 +108,7 @@ def llm_judge(sample):
     if not os.getenv("ANTHROPIC_API_KEY"): return None
     try:
         import anthropic
-        prompt = ("앱 스토어 심사 보조자로서, 아래 자료만 근거로 이 앱이 AI 코딩 도구(바이브코딩)로 만들어졌을 가능성을 0~100으로 추정하라. "
+        prompt = ("앱 정보 분석 보조자로서, 아래 자료만 근거로 이 앱이 AI 코딩 도구로 만들어졌을 가능성을 0~100으로 추정하라. AI 사용 여부는 앱의 좋고 나쁨과 무관하니 품질 평가를 섞지 말 것. "
                   "출시일, 평가 수, 언어 수 같은 스토어 정보도 판단에 쓰고, 사람이 만들었다고 볼 근거(오래된 출시일, 많은 평가 수)와 AI로 만들었다고 볼 근거를 모두 따져 보라. 정말 자료가 없을 때만 50 근처로 두라. 확정적으로 단정하지 말 것. "
                   'JSON만 출력: {"ai_likelihood":0,"observations":["관찰 근거"]}\n' + json.dumps(sample, ensure_ascii=False)[:9000])
         r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=600,
@@ -115,32 +116,6 @@ def llm_judge(sample):
         d = json.loads(re.sub(r"```json|```", "", r.content[0].text).strip())
         d["ai_likelihood"] = max(0, min(100, int(d["ai_likelihood"])))
         return d
-    except Exception:
-        return None
-
-# ---------- AI 심사 요약 (선택: ANTHROPIC_API_KEY 필요) ----------
-def llm_summary(out, name):
-    """도구가 이미 찾은 근거와 점수만 읽고 심사자용 요약과 '개발자에게 물어볼 질문'을 만든다.
-    README나 웹페이지 원문은 넘기지 않는다(그 안의 지시문에 AI가 휘둘리는 것을 막기 위해). 키가 없거나 실패하면 None."""
-    if not os.getenv("ANTHROPIC_API_KEY"): return None
-    try:
-        import anthropic
-        facts = {"name": name, "ai_score": out["ai_score"], "quality_score": out["quality_score"],
-                 "confidence": out["confidence"], "verdict": out["verdict"], "triage": out["triage"],
-                 "declaration_flag": out["declaration_flag"],
-                 "signals": [{"side": x["side"], "strength": x["strength"], "text": x["text"][:160]} for x in out["signals"][:12]],
-                 "quality_checks": [{"label": c["label"], "ok": c["ok"]} for c in out["quality_checks"]]}
-        prompt = ("너는 앱 심사자를 돕는 보조자다. 아래 JSON에 있는 사실만 근거로 쓰고, 없는 사실은 지어내지 마라. "
-                  "AI를 썼다고 단정하거나 부정행위로 몰지 말고, AI 사용 자체는 문제가 아닐 수 있음을 전제로 써라. "
-                  "근거가 부족하면 '근거가 부족하다'고 솔직히 써라. 다음 JSON만 출력하라: "
-                  '{"summary":"심사자가 10초에 읽을 3문장 이내 요약","check_first":"먼저 직접 확인하면 좋은 것 한 가지",'
-                  '"questions":["개발자에게 물어볼 구체적인 질문 3개 이내(개발 과정, 직접 구현한 부분, AI 활용 범위 중심)"]}\n'
-                  + json.dumps(facts, ensure_ascii=False))
-        r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=700,
-                                                  messages=[{"role": "user", "content": prompt}])
-        d = json.loads(re.search(r"\{.*\}", r.content[0].text, re.S).group(0))
-        qs = [str(q)[:200] for q in (d.get("questions") or []) if q][:3]
-        return {"summary": str(d.get("summary", ""))[:600], "check_first": str(d.get("check_first", ""))[:300], "questions": qs}
     except Exception:
         return None
 
@@ -171,23 +146,23 @@ def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
     # 수정: 증거(signals)가 하나도 없으면 '직접 제작'이라고 단정하지 않고 판단 보류
     hold = (conf == "낮음" or not sigs) and not strong
     if hold: verdict = "판단 보류 (근거 부족)"
-    elif ai >= 70: verdict = "AI 도구 사용 가능성 높음 (바이브코딩 의심)"
-    elif ai >= 40: verdict = "AI 보조 개발 가능성 (혼합)"
-    else: verdict = "개발자 직접 제작 가능성 높음"
+    elif ai >= 70: verdict = "AI 활용 흔적 많음"
+    elif ai >= 40: verdict = "AI 활용 흔적 일부 (혼합)"
+    else: verdict = "AI 활용 흔적 적음"
     q = qual if qual is not None else 50
-    if hold: triage = "근거 부족 → 심사자가 직접 확인"
-    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
-    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 심사 우선"
-    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 통과"
-    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 요청"
+    # 선택 가이드는 AI 점수를 쓰지 않는다. AI를 썼다는 이유로 불리해지지 않게 하기 위해서다.
+    if hold: triage = "공개 정보가 부족해요 → 앱 설명·리뷰·개인정보 처리방침을 직접 확인해 보세요"
+    elif q >= 60: triage = "기술적 완성도 신호 양호 → 비교적 안심하고 살펴볼 만해요"
+    elif q >= 40: triage = "완성도 신호 보통 → 리뷰와 개인정보 처리방침을 함께 확인해 보세요"
+    else: triage = "공개된 완성도 신호가 적어요 → 설치 전 리뷰와 개발사 정보를 확인해 보세요"
     flag = None
-    if declared_ai is False and (strong or ai >= 65): flag = "AI 사용 미공개로 신고했으나 AI 흔적이 발견됨 → 소명 요청 권고"
-    elif declared_ai is True and ai < 40: flag = "AI 사용을 공개했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
+    if declared_ai is False and (strong or ai >= 65): flag = "AI 미사용으로 알려졌지만 AI 활용 흔적이 보여요. AI 활용 자체는 문제가 아니며, 정보 표기가 맞는지 확인하는 참고용이에요"
+    elif declared_ai is True and ai < 40: flag = "AI 사용이 공개됐지만 코드·페이지의 흔적은 적어요 (정상일 수 있어요)"
     return {"ai_score": ai, "quality_score": qual, "confidence": conf, "verdict": verdict, "triage": triage,
-            "priority": round(ai * (100 - q) / 100), "declaration_flag": flag,
+            "priority": round(100 - q), "declaration_flag": flag,
             "signals": sorted(sigs, key=lambda s: -PTS[s["strength"]]),
             "quality_checks": [{"label": l, "ok": ok} for l, ok, _ in checks],
-            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 개발자 소명을 받으세요."}
+            "llm": llm, "disclaimer": "확정 판단이 아닌 참고 정보입니다. AI를 활용했다는 사실만으로 앱의 품질이 낮다고 볼 수 없어요. 공개된 정보만 사용했고, 비공개 코드는 볼 수 없습니다."}
 
 
 # ---------- 스토어 메타데이터 / 웹 리서치 증거 ----------
