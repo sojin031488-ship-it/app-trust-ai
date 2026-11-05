@@ -4,8 +4,10 @@
         export SUPABASE_URL=...        (선택: 결과 저장)
         export SUPABASE_KEY=...        (선택: 서버 전용 secret 키)
         export REVIEW_TOKEN=...        (필수: 심사자 판정 저장용 암호. 없으면 판정 저장이 막힘)
+                                        (앱 제출 기능의 심사자 화면도 같은 암호를 사용)
         uvicorn main:app --reload      ->  http://127.0.0.1:8000
-공개된 정보만 읽습니다 (비밀키 탐색·침투 테스트 없음)."""
+공개된 정보만 읽습니다 (비밀키 탐색·침투 테스트 없음).
+앱 제출 기능(submissions / revision_requests / submission_events 테이블)은 SUPABASE_URL/KEY 가 있어야 동작합니다."""
 import hmac
 import os
 import time
@@ -17,6 +19,8 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 import collect
 import detector as D
+import store as ST
+import submissions as SUB
 
 # /docs, /redoc, /openapi.json 을 꺼서 내부 API 구조가 공개되지 않게 한다
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -47,6 +51,18 @@ if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
         sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     except Exception:
         traceback.print_exc()
+
+# 앱 제출 기능 저장소 (같은 Supabase 연결을 사용. 연결이 없으면 제출 기능만 503)
+db = ST.SupabaseStore(sb) if sb else None
+
+def reviewer_denied(x_reviewer_token):
+    """REVIEW_TOKEN 확인. 통과하면 None, 막히면 오류 응답을 돌려준다."""
+    token = os.getenv("REVIEW_TOKEN")
+    if not token:                                  # 암호가 설정되지 않았으면 아무도 저장할 수 없다
+        return JSONResponse({"error": "서버에 심사자 코드(REVIEW_TOKEN)가 아직 설정되지 않았어요"}, status_code=503)
+    if not hmac.compare_digest((x_reviewer_token or "").encode(), token.encode()):
+        return JSONResponse({"error": "심사자 코드가 맞지 않아요"}, status_code=401)
+    return None
 
 class Q(BaseModel):
     query: str = ""                  # 앱 이름 (또는 URL / GitHub 주소)
@@ -169,11 +185,7 @@ def batch(b: Batch, request: Request):
 def review(r: Review, x_reviewer_token: str | None = Header(default=None)):
     if not sb:
         return JSONResponse({"error": "Supabase 미연결"}, status_code=503)
-    token = os.getenv("REVIEW_TOKEN")
-    if not token:                                  # 암호가 설정되지 않았으면 아무도 저장할 수 없다
-        return JSONResponse({"error": "서버에 심사자 코드(REVIEW_TOKEN)가 아직 설정되지 않았어요"}, status_code=503)
-    if not hmac.compare_digest((x_reviewer_token or "").encode(), token.encode()):
-        return JSONResponse({"error": "심사자 코드가 맞지 않아요"}, status_code=401)
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
     try:
         sb.table("reviews").insert(r.model_dump()).execute()
     except Exception:
@@ -195,6 +207,118 @@ def stats():
         [{"key": k, "n": v["n"], "precision": v["precision"], "weight": v["weight"]} for k, v in w.items()],
         key=lambda x: -x["n"])[:12]
     return rep
+
+# ---------- 앱 제출 (개발자) / 제출 심사 (심사자) ----------
+class SubmissionIn(BaseModel):
+    app_name: str = ""
+    developer: str = ""
+    store: str = ""
+    store_track_id: str | int | None = None
+    store_url: str | None = None
+    website: str | None = None
+    description: str | None = None
+    ai_disclosure: str = ""
+    ai_note: str | None = None
+    privacy_url: str | None = None
+    operator_info: str | None = None
+    repo: str | None = None
+
+class StatusIn(BaseModel):
+    status: str
+    note: str = ""
+
+class RevisionIn(BaseModel):
+    field: str
+    reason: str
+
+class AnswerIn(BaseModel):
+    value: str | None = ""
+
+class ResolveIn(BaseModel):
+    outcome: Literal["resolved", "dismissed"] = "resolved"
+
+NO_DB = {"error": "Supabase 미연결 (앱 제출 기능을 쓰려면 SUPABASE_URL / SUPABASE_KEY 가 필요해요)"}
+
+def sub_call(fn, *args):
+    """제출 기능 공통 처리: 입력 오류는 그 메시지로, DB 오류는 로그만 남기고 일반 메시지로 돌려준다."""
+    if not db:
+        return JSONResponse(NO_DB, status_code=503)
+    try:
+        return fn(db, *args)
+    except SUB.SubmissionError as e:
+        return JSONResponse({"error": e.message}, status_code=e.status_code)
+    except Exception as e:
+        # Vercel 로그에서 'SUBMISSION_FAIL' 로 검색하면 원인(컬럼 불일치, 권한 등)이 보인다
+        print("SUBMISSION_FAIL", type(e).__name__, str(e)[:500])
+        traceback.print_exc()
+        return JSONResponse({"error": "저장소 처리 중 문제가 생겼어요. 잠시 뒤 다시 시도해 주세요."}, status_code=500)
+
+@app.post("/api/submissions")
+def submission_create(s: SubmissionIn, request: Request):
+    if too_many(request):
+        return JSONResponse({"error": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요."}, status_code=429)
+    def go(st, data):
+        sub, code = SUB.create(st, data)
+        return {"submission": sub, "author_code": code, "criteria": SUB.C.evaluate(sub)}
+    return sub_call(go, s.model_dump())
+
+@app.get("/api/submissions/{sid}/mine")
+def submission_mine(sid: int, request: Request, x_author_code: str | None = Header(default=None)):
+    if too_many(request):                          # 작성자 코드 무차별 대입을 늦춘다
+        return JSONResponse({"error": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요."}, status_code=429)
+    return sub_call(SUB.author_view, sid, x_author_code)
+
+@app.post("/api/submissions/{sid}/revisions/{rid}/answer")
+def submission_answer(sid: int, rid: int, a: AnswerIn, request: Request, x_author_code: str | None = Header(default=None)):
+    if too_many(request):
+        return JSONResponse({"error": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요."}, status_code=429)
+    return sub_call(SUB.answer_revision, sid, x_author_code, rid, a.value)
+
+@app.get("/api/submissions")
+def submission_list(status: str | None = None, x_reviewer_token: str | None = Header(default=None)):
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    return sub_call(lambda st, s: {"items": SUB.reviewer_list(st, s)}, status or None)
+
+@app.get("/api/submissions/{sid}")
+def submission_detail(sid: int, x_reviewer_token: str | None = Header(default=None)):
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    return sub_call(SUB.reviewer_view, sid)
+
+@app.post("/api/submissions/{sid}/status")
+def submission_status(sid: int, s: StatusIn, x_reviewer_token: str | None = Header(default=None)):
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    return sub_call(SUB.set_status, sid, s.status, s.note)
+
+@app.post("/api/submissions/{sid}/revisions")
+def submission_revision(sid: int, r: RevisionIn, x_reviewer_token: str | None = Header(default=None)):
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    return sub_call(SUB.request_revision, sid, r.field, r.reason)
+
+@app.post("/api/revisions/{rid}/resolve")
+def revision_resolve(rid: int, r: ResolveIn, x_reviewer_token: str | None = Header(default=None)):
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    return sub_call(SUB.resolve_revision, rid, r.outcome)
+
+@app.post("/api/submissions/{sid}/analyze")
+def submission_analyze(sid: int, request: Request, x_reviewer_token: str | None = Header(default=None)):
+    """제출 정보로 기존 앱 분석을 실행한다. 결과는 /api/search 와 같은 모양이고 analyses 테이블에도 그대로 저장된다."""
+    if (denied := reviewer_denied(x_reviewer_token)): return denied
+    if not db:
+        return JSONResponse(NO_DB, status_code=503)
+    if too_many(request):
+        return JSONResponse({"error": "요청이 너무 많아요. 잠시 뒤 다시 시도해 주세요."}, status_code=429)
+    sub = sub_call(lambda st: st.get_submission(sid))
+    if isinstance(sub, JSONResponse): return sub
+    if not sub:
+        return JSONResponse({"error": "제출 건을 찾을 수 없어요."}, status_code=404)
+    args = SUB.analysis_args(sub)
+    if not args["query"]:
+        return JSONResponse({"error": "분석할 앱 이름이나 주소가 없어요."}, status_code=400)
+    r = analyze_one(Q(**args))
+    logged = sub_call(SUB.record_analysis, sid, r)
+    if isinstance(logged, JSONResponse): r["linked"] = False   # 분석은 성공했지만 제출 이력 연결만 실패
+    r["submission_id"] = sid
+    return r
 
 @app.get("/robots.txt")
 def robots():
