@@ -113,7 +113,7 @@ def web_research(name, seller, store_url):
         return None, f"웹 리서치 실패: {str(e)[:100]}"
 
 # ---------- 전체 파이프라인 ----------
-def run(query, track_id=None, repo_url=None, declared_ai=None):
+def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None):
     query, steps, notes, sigs, checks, sources = query.strip(), [], [], [], [], set()
     store, cands, site, repo, site_url, cc = None, [], None, None, None, "kr"
     mismatch = False                                       # 검색어와 다른 앱이 잡혔는가
@@ -178,7 +178,7 @@ def run(query, track_id=None, repo_url=None, declared_ai=None):
               "readme": (repo or {}).get("readme", "")[:2000],
               "commit_messages": [c["msg"][:100] for c in (repo or {}).get("commits", [])[:15]],
               "page_text": (site or {}).get("text", "")[:1200]}
-    out = D.evaluate(sigs, checks, sources, D.llm_judge(sample), declared_ai)
+    out = D.evaluate(sigs, checks, sources, D.llm_judge(sample), declared_ai, weights)
     if mismatch:                                           # 엉뚱한 앱일 수 있으면 판정하지 않는다
         out["verdict"] = "판단 보류 (검색한 앱과 다를 수 있음)"
         out["triage"] = "검색한 앱이 맞는지 확인 필요 → 영문 이름으로 다시 검색"
