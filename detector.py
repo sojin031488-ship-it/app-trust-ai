@@ -104,7 +104,7 @@ def llm_judge(sample):
     try:
         import anthropic
         prompt = ("앱 스토어 심사 보조자로서, 아래 자료만 근거로 이 앱이 AI 코딩 도구(바이브코딩)로 만들어졌을 가능성을 0~100으로 추정하라. "
-                  "자료가 부족하면 50 근처로 두고, 사람이 쓴 것으로 볼 근거도 함께 고려하라. 확정적으로 단정하지 말 것. "
+                  "출시일, 평가 수, 언어 수 같은 스토어 정보도 판단에 쓰고, 사람이 만들었다고 볼 근거(오래된 출시일, 많은 평가 수)와 AI로 만들었다고 볼 근거를 모두 따져 보라. 정말 자료가 없을 때만 50 근처로 두라. 확정적으로 단정하지 말 것. "
                   'JSON만 출력: {"ai_likelihood":0,"observations":["관찰 근거"]}\n' + json.dumps(sample, ensure_ascii=False)[:9000])
         r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=600,
                                                   messages=[{"role": "user", "content": prompt}])
@@ -118,11 +118,15 @@ COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별
 
 def evaluate(sigs, checks, sources, llm, declared_ai):
     ai_pts = min(70, sum(PTS[s["strength"]] for s in sigs if s["side"] == "ai"))
-    h_pts = min(30, sum(PTS[s["strength"]] for s in sigs if s["side"] == "human"))
+    h_pts = min(50, sum(PTS[s["strength"]] for s in sigs if s["side"] == "human"))
     rule = 30 + ai_pts - h_pts                      # 30 = 임의의 사전값(prior), 실제 데이터로 보정 필요
-    strong = any(s["side"] == "ai" and s["strength"] == "strong" for s in sigs)
+    strong_ai = any(s["side"] == "ai" and s["strength"] == "strong" for s in sigs)
+    strong_h = any(s["side"] == "human" and s["strength"] == "strong" for s in sigs)
+    strong = strong_ai or strong_h                  # 어느 쪽이든 강한 근거가 있는가
     ai = rule if llm is None else 0.85 * rule + 0.15 * llm["ai_likelihood"]
-    if strong: ai = max(ai, 85)
+    if strong_ai and strong_h: ai = 55               # 양쪽 강한 근거 -> 혼합
+    elif strong_ai: ai = max(ai, 85)
+    elif strong_h: ai = min(ai, 20)                  # 사람 쪽 강한 근거 -> AI 점수 20 이하
     ai = round(max(0, min(100, ai)))
     qual = round(100 * sum(w for _, ok, w in checks if ok) / max(1, sum(w for *_, w in checks))) if checks else None
     cov = sum(COV[k] for k in sources) + (5 if llm else 0)
@@ -154,19 +158,38 @@ def _dt(x):
     try: return datetime.fromisoformat((x or "").replace("Z", "+00:00"))
     except Exception: return None
 
+CHATGPT_DATE = datetime(2022, 11, 30, tzinfo=timezone.utc)   # 생성형 AI 코딩이 대중화되기 시작한 시점
+
 def store_signals(meta, siblings):
     """meta: iTunes Search API 결과 1건, siblings: 같은 개발자의 앱 목록"""
     sig, desc = [], meta.get("description", "") or ""
+    rel, cur = _dt(meta.get("releaseDate")), _dt(meta.get("currentVersionReleaseDate"))
+    ratings = meta.get("userRatingCount") or 0
+    langs = len(meta.get("languageCodesISO2A") or [])
+    now = datetime.now(timezone.utc)
+    old_app = bool(rel and rel < CHATGPT_DATE)                      # 2022-11-30 이전 출시
+    big_app = ratings >= 100000
     if len(re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", desc)) >= 6:
         sig.append(S("ai", "weak", "스토어 설명에 이모지가 많음", "store"))
-    rel, cur = _dt(meta.get("releaseDate")), _dt(meta.get("currentVersionReleaseDate"))
-    if rel:
+    # --- AI 쪽: 단기간 대량 제작 (오래됐거나 대형 앱은 제외해 오탐을 막음) ---
+    if rel and not old_app and not big_app:
         near = [a for a in siblings if (d := _dt(a.get("releaseDate"))) and abs((d - rel).days) <= 90]
         if len(near) >= 3:
             sig.append(S("ai", "medium", f"같은 개발자가 이 앱 출시 전후 90일 안에 앱 {len(near)}개를 출시 (대량 제작 패턴)", "store"))
+    # --- 사람 쪽: 스토어 정보로 보는 직접 개발 근거 ---
+    if old_app:
+        sig.append(S("human", "strong", f"ChatGPT 공개(2022-11-30) 이전인 {rel.year}년에 출시된 앱", "store"))
+    if ratings >= 100000:
+        sig.append(S("human", "medium", f"평가 수가 {ratings:,}건으로 많음 (오랜 기간 검증된 앱)", "store"))
+    elif ratings >= 10000:
+        sig.append(S("human", "weak", f"평가 수가 {ratings:,}건 (어느 정도 이용자가 있는 앱)", "store"))
+    if rel and cur and (cur - rel).days >= 1095 and (now - cur).days <= 365:
+        sig.append(S("human", "medium", f"출시 후 {round((cur - rel).days / 365)}년 넘게 꾸준히 업데이트됨", "store"))
+    if langs >= 10:
+        sig.append(S("human", "medium", f"{langs}개 언어로 현지화된 앱", "store"))
     q = [("개발자 웹사이트 등록", bool(meta.get("sellerUrl")), 1),
          ("릴리스 노트 작성", len(meta.get("releaseNotes") or "") >= 20, 1)]
-    if rel and cur and (datetime.now(timezone.utc) - rel).days >= 30:    # 신규 앱은 업데이트 이력을 따지지 않음
+    if rel and cur and (now - rel).days >= 30:    # 신규 앱은 업데이트 이력을 따지지 않음
         q.append(("출시 후 업데이트 이력", (cur - rel).days >= 7, 2))
     return sig, q
 
