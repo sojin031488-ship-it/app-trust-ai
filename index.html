@@ -109,14 +109,19 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
 
 <main class="wrap">
   <div class="card finder" id="finder">
-    <label for="q" style="font-size:16px">확인할 앱 이름</label>
+    <label for="q" style="font-size:16px">확인할 앱 이름 또는 웹사이트 주소</label>
     <div class="row">
-      <input id="q" type="text" placeholder="예: 카카오톡" autocomplete="off">
+      <input id="q" type="text" placeholder="예: 카카오톡 또는 https://example.com" autocomplete="off">
       <button id="go">분석하기</button>
     </div>
     <button class="adv-toggle" id="advBtn" type="button">＋ 더 정확하게 분석하고 싶어요 (선택)</button>
     <div id="adv">
       <div class="g">
+        <div>
+          <label for="url">공식 웹사이트 주소</label>
+          <input id="url" type="text" placeholder="https://example.com">
+          <p class="hint">앱 이름과 함께 넣으면 같은 앱인지 확인하고, 다르면 알려 드려요. 이름 없이 주소만 넣어도 분석돼요.</p>
+        </div>
         <div>
           <label for="repo">GitHub 저장소 주소</label>
           <input id="repo" type="text" placeholder="https://github.com/아이디/저장소">
@@ -179,8 +184,10 @@ $("advBtn").addEventListener("click", () => {
 
 async function analyze(trackId){
   const query = $("q").value.trim();
-  if(!query){ $("q").focus(); return; }
+  const url = $("url").value.trim();
+  if(!query && !url){ $("q").focus(); return; }
   const body = {query};
+  if(url) body.url = url;
   if(trackId) body.track_id = trackId;
   if($("repo").value.trim()) body.repo = $("repo").value.trim();
   if($("decl").value) body.declared_ai = $("decl").value === "true";
@@ -211,6 +218,12 @@ const ring = (v, color) => `<div class="num">${v}<small style="font-size:14px;co
 
 function render(d){
   if(d.error){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  if(d.needs_selection){          // 앱이 여러 개이거나 불확실하면 임의로 정하지 않고 고르게 한다
+    const cs = (d.candidates||[]).map(c =>
+      `<button class="ghost" data-id="${esc(c.track_id)}" data-q="${esc(d.name)}" style="margin:0 6px 6px 0">${esc(c.name)} · ${esc(c.seller)}${c.rating_count?` · 평가 ${esc(c.rating_count)}개`:""}</button>${c.url?`<a class="small" href="${esc(c.url)}" target="_blank" rel="noopener" style="margin-right:12px">스토어</a>`:""}`).join("");
+    $("out").innerHTML = `<div class="card"><h2>어떤 앱을 분석할까요?</h2><p>${esc(d.message)}</p>${cs || "<p class='small'>후보를 찾지 못했어요. 영문 이름이나 웹사이트 주소로 다시 시도해 보세요.</p>"}</div>`;
+    return;
+  }
   const sigs = (d.signals||[]).map(s =>
     `<li><span class="tag t-${esc(s.side)}">${s.side==="ai"?"AI 쪽":"사람 쪽"}</span><span class="tag t-${esc(s.strength)}">${SL[s.strength]||""}</span>${esc(s.text)}</li>`).join("") || "<li class='small'>발견된 흔적이 없어요.</li>";
   const checks = (d.quality_checks||[]).map(c => `<li class="${c.ok?"ok":"no"}">${c.ok?"✔":"✘"} ${esc(c.label)}</li>`).join("");
@@ -220,7 +233,7 @@ function render(d){
   const repos = (d.unconfirmed_repos||[]).map(r =>
     `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <span class="small">${esc(r.desc||"")}</span></li>`).join("");
   const cands = (d.candidates||[]).map(c =>
-    `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
+    `<button class="ghost" data-id="${esc(c.track_id)}" data-q="${esc(d.name)}" style="margin:0 6px 6px 0">${esc(c.name)} · ${esc(c.seller)}${c.rating_count?` · 평가 ${esc(c.rating_count)}개`:""}</button>`).join("");
   const q = d.quality_score;
   const A = d.ai_summary;
   const aiBox = A ? `<div class="card" id="aibox" style="${$("blind").checked && !!d.analysis_id ? "display:none" : ""}"><h2>AI 요약 <span class="small">(위 근거만 읽고 정리한 글이에요. 확정 판결이 아니에요)</span></h2>
@@ -309,7 +322,7 @@ $("out").addEventListener("click", async e => {
       if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const ab=$("aibox"); if(ab) ab.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
     }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
     b.disabled = false;
-  } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
+  } else if(b.dataset.id){ if(b.dataset.q) $("q").value = b.dataset.q; analyze(Number(b.dataset.id)); }
 });
 
 // ===== 일괄 분석 (서버가 최대 10개를 동시에 처리) =====
@@ -319,6 +332,7 @@ function drawBatch(){
   $("bout").innerHTML = `<table class="mx" style="width:100%"><tr><th>입력</th><th>찾은 앱</th><th>AI 활용 흔적</th><th>완성도</th><th>추가 확인 필요도</th><th>선택 가이드</th><th></th></tr>` +
     batchRows.map((r,i) => {
       const d = r.data;
+      if(d && d.needs_selection) return `<tr><td>${esc(r.query)}</td><td colspan="5" class="small">앱이 여러 개이거나 확실하지 않아요. 상세에서 직접 골라 주세요.</td><td><button class="ghost" data-bi="${i}">고르기</button></td></tr>`;
       if(!d || d.error) return `<tr><td>${esc(r.query)}</td><td colspan="6" class="small">실패: ${esc(d ? d.error : "")}</td></tr>`;
       return `<tr><td>${esc(r.query)}</td><td>${esc(d.name)}</td><td>${esc(d.ai_score)}</td><td>${d.quality_score==null?"-":esc(d.quality_score)}</td><td><b>${esc(d.priority)}</b></td><td>${esc(d.triage)}</td><td><button class="ghost" data-bi="${i}">상세</button></td></tr>`;
     }).join("") + `</table>`;
