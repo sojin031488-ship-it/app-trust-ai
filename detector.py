@@ -7,7 +7,7 @@
 4) 개발자가 AI 사용을 공개했는지와 비교해 불일치를 표시 (앱스토어 정책 연계)
 """
 import json, os, re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 PTS = {"strong": 40, "medium": 15, "weak": 5}
@@ -65,7 +65,7 @@ def site_signals(url, site):
     if imgs: q.append(("이미지 alt 90% 이상", sum("alt=" in i for i in imgs) / len(imgs) >= 0.9, 1))
     return sig, q
 
-def repo_signals(repo, hackathon=False):
+def repo_signals(repo):
     sig, names, gh, pkg, cm = [], repo["names"], repo["gh_names"], repo["pkg"], repo["commits"]
     for f, tool in REPO_AI_FILES.items():
         if f in names: sig.append(S("ai", "strong", f"{tool} 설정 파일 발견: {f}", "repo"))
@@ -83,7 +83,7 @@ def repo_signals(repo, hackathon=False):
         ds = sorted(datetime.fromisoformat(c["date"].replace("Z", "+00:00")) for c in cm)
         span = (ds[-1] - ds[0]).days if ds else None
     except Exception: pass
-    if n >= 3 and span is not None and span <= 2 and not hackathon:   # 해커톤은 원래 짧은 기간에 만드므로 이 신호는 쓰지 않는다
+    if n >= 3 and span is not None and span <= 2:
         sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (해커톤 프로젝트면 정상)", "repo"))
     if n >= 50 and span is not None and span >= 30:
         sig.append(S("human", "medium", f"{span}일에 걸친 꾸준한 커밋 이력 ({n}건+)", "repo"))
@@ -121,7 +121,7 @@ def llm_judge(sample):
 
 # ---------- AI 심사 요약 (선택: ANTHROPIC_API_KEY 필요) ----------
 def llm_summary(out, name):
-    """도구가 이미 찾은 근거와 점수만 읽고 심사위원용 요약과 '참가자에게 물어볼 질문'을 만든다.
+    """도구가 이미 찾은 근거와 점수만 읽고 심사자용 요약과 '개발자에게 물어볼 질문'을 만든다.
     README나 웹페이지 원문은 넘기지 않는다(그 안의 지시문에 AI가 휘둘리는 것을 막기 위해). 키가 없거나 실패하면 None."""
     if not os.getenv("ANTHROPIC_API_KEY"): return None
     try:
@@ -130,13 +130,12 @@ def llm_summary(out, name):
                  "confidence": out["confidence"], "verdict": out["verdict"], "triage": out["triage"],
                  "declaration_flag": out["declaration_flag"],
                  "signals": [{"side": x["side"], "strength": x["strength"], "text": x["text"][:160]} for x in out["signals"][:12]],
-                 "hackathon_period_check": out.get("hackathon"),
                  "quality_checks": [{"label": c["label"], "ok": c["ok"]} for c in out["quality_checks"]]}
-        prompt = ("너는 해커톤 심사위원을 돕는 보조자다. 아래 JSON에 있는 사실만 근거로 쓰고, 없는 사실은 지어내지 마라. "
-                  "AI를 썼다고 단정하거나 부정행위로 몰지 말고, 해커톤에서는 AI 사용이 허용될 수 있음을 전제로 써라. "
+        prompt = ("너는 앱 심사자를 돕는 보조자다. 아래 JSON에 있는 사실만 근거로 쓰고, 없는 사실은 지어내지 마라. "
+                  "AI를 썼다고 단정하거나 부정행위로 몰지 말고, AI 사용 자체는 문제가 아닐 수 있음을 전제로 써라. "
                   "근거가 부족하면 '근거가 부족하다'고 솔직히 써라. 다음 JSON만 출력하라: "
-                  '{"summary":"심사위원이 10초에 읽을 3문장 이내 요약","check_first":"먼저 직접 확인하면 좋은 것 한 가지",'
-                  '"questions":["참가자에게 물어볼 구체적인 질문 3개 이내(개발 과정, 직접 구현한 부분, AI 활용 범위 중심)"]}\n'
+                  '{"summary":"심사자가 10초에 읽을 3문장 이내 요약","check_first":"먼저 직접 확인하면 좋은 것 한 가지",'
+                  '"questions":["개발자에게 물어볼 구체적인 질문 3개 이내(개발 과정, 직접 구현한 부분, AI 활용 범위 중심)"]}\n'
                   + json.dumps(facts, ensure_ascii=False))
         r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=700,
                                                   messages=[{"role": "user", "content": prompt}])
@@ -145,34 +144,6 @@ def llm_summary(out, name):
         return {"summary": str(d.get("summary", ""))[:600], "check_first": str(d.get("check_first", ""))[:300], "questions": qs}
     except Exception:
         return None
-
-# ---------- 해커톤 기간 확인 (커밋 날짜가 대회 기간 안인가) ----------
-KST = timezone(timedelta(hours=9))
-
-def hackathon_check(repo, start, end):
-    """start/end: 'YYYY-MM-DD' (한국 시간 기준, 시작일 0시 ~ 마감일 24시). 점수에는 반영하지 않고 따로 보여 준다.
-    커밋 날짜는 작성자가 바꿀 수 있고, 가져온 커밋이 100건뿐이라 '참고용 단서'로만 쓴다."""
-    try:
-        t0 = datetime.fromisoformat(start + "T00:00:00").replace(tzinfo=KST)
-        t1 = datetime.fromisoformat(end + "T23:59:59").replace(tzinfo=KST) if end else None
-    except Exception:
-        return {"error": "해커톤 날짜 형식이 올바르지 않아요 (예: 2026-11-01)"}
-    ds = sorted(d for d in (_dt(c["date"]) for c in repo["commits"]) if d)
-    if not ds: return {"error": "커밋 날짜를 읽지 못했어요"}
-    before = sum(d < t0 for d in ds)
-    after = sum(bool(t1 and d > t1) for d in ds)
-    out = {"start": start, "end": end or None, "total": len(ds), "before": before, "after": after,
-           "in_period": len(ds) - before - after, "first_commit": ds[0].astimezone(KST).strftime("%Y-%m-%d %H:%M"),
-           "truncated": len(ds) >= 100}
-    if before:
-        out["flag"] = f"해커톤 시작({start}) 전 커밋이 {before}건 있어요 (첫 커밋 {out['first_commit']}). 기존 프로젝트를 이어 만들었는지 참가자에게 확인해 보세요."
-    elif after:
-        out["flag"] = f"마감({end}) 이후 커밋이 {after}건 있어요. 제출 후 수정인지 확인해 보세요."
-    else:
-        out["flag"] = f"확인한 커밋 {len(ds)}건이 모두 해커톤 기간 안에 있어요."
-    if out["truncated"]:
-        out["flag"] += " (최근 100건만 확인했어요. 이보다 오래된 커밋은 보이지 않아요.)"
-    return out
 
 STRONG_MIN_W = 0.8   # 이 배수 미만이면 강한 근거로 쳐 주지 않음
 COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별 충분도 가중치
@@ -206,18 +177,18 @@ def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
     else: verdict = "직접 제작 가능성 높음"
     q = qual if qual is not None else 50
     if hold: triage = "근거 부족 → 심사자가 직접 확인"
-    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 검토"
-    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 검토 우선"
-    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 검토"
-    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 확인"
+    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 심사"
+    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 심사 우선"
+    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 통과"
+    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 요청"
     flag = None
-    if declared_ai is False and (strong or ai >= 65): flag = "AI 미사용으로 신고했으나 AI 흔적이 발견됨 → 참가자 소명 요청 권고"
-    elif declared_ai is True and ai < 40: flag = "AI 사용을 신고했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
+    if declared_ai is False and (strong or ai >= 65): flag = "AI 사용 미공개로 신고했으나 AI 흔적이 발견됨 → 소명 요청 권고"
+    elif declared_ai is True and ai < 40: flag = "AI 사용을 공개했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
     return {"ai_score": ai, "quality_score": qual, "confidence": conf, "verdict": verdict, "triage": triage,
             "priority": round(ai * (100 - q) / 100), "declaration_flag": flag,
             "signals": sorted(sigs, key=lambda s: -PTS[s["strength"]]),
             "quality_checks": [{"label": l, "ok": ok} for l, ok, _ in checks],
-            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 참가자 소명을 받으세요."}
+            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 개발자 소명을 받으세요."}
 
 
 # ---------- 스토어 메타데이터 / 웹 리서치 증거 ----------
