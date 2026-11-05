@@ -140,25 +140,91 @@ def web_research(name, seller, store_url):
     except Exception as e:
         return None, f"웹 리서치 실패: {str(e)[:100]}"
 
+# ---------- 입력 확인: 주소 검증 / 후보 판단 / 이름과 주소가 같은 앱인지 ----------
+def check_url(url):
+    """입력한 웹사이트 주소가 유효한지 확인한다. (정리된 주소, 오류 문구)를 돌려준다."""
+    u = (url or "").strip()
+    if not re.match(r"https?://", u, re.I):
+        if re.match(r"^[\w-]+(\.[\w-]+)+(/.*)?$", u): u = "https://" + u      # 'example.com' 처럼 쓴 경우
+        else: return None, "웹사이트 주소 형식이 올바르지 않아요. 예: https://example.com"
+    if not is_public_url(u): return None, "열 수 없는 주소예요. 인터넷에 공개된 웹사이트 주소(http/https)를 입력해 주세요."
+    st, _, _ = http_get(u, max_bytes=20_000)
+    if st == 0: return None, "이 주소에 접속하지 못했어요. 주소를 다시 확인해 주세요."
+    if st in (404, 410): return None, f"이 주소에는 페이지가 없어요 (응답 {st}). 주소를 다시 확인해 주세요."
+    return u, None
+
+def _host(url):
+    h = (urlparse(url if re.match(r"https?://", url or "") else "https://" + (url or "")).hostname or "").lower()
+    return h[4:] if h.startswith("www.") else h
+
+def _base_label(host):
+    p = host.split(".")
+    if len(p) >= 3 and p[-2] in ("co", "com", "or", "ne", "go", "ac"): return p[-3]
+    return p[-2] if len(p) >= 2 else host
+
+def same_app(store, url):
+    """App Store 앱과 입력한 주소가 같은 앱을 가리키는지. 확인되면 True, 확인 못 하면 False."""
+    h, sh = _host(url), _host(store.get("sellerUrl") or "")
+    if h and sh and (h == sh or h.endswith("." + sh) or sh.endswith("." + h) or _base_label(h) == _base_label(sh)): return True
+    nm, sl = norm(store.get("trackName")), norm(store.get("sellerName"))
+    if len(norm(_base_label(h))) >= 3 and any(norm(_base_label(h)) in x or x in norm(_base_label(h)) for x in (nm, sl) if len(x) >= 3): return True
+    _, _, html = http_get(url, max_bytes=200_000)           # 마지막으로 페이지 안에 앱 이름/개발사 이름이 있는지 본다
+    page = norm(re.sub(r"<[^>]+>", " ", html))
+    return bool(page) and ((len(nm) >= 2 and nm in page) or (len(sl) >= 3 and sl in page))
+
+def choose_app(query, rs):
+    """검색 결과에서 앱을 확정할 수 있으면 ('ok'|'close', 앱), 불확실하면 ('select', None)을 돌려준다.
+    - 이름이 거의 같은 앱이 서로 다른 개발사에서 2개 이상 → 동명의 앱이라 사용자가 고르게 한다
+    - 비슷한 이름이 하나도 없음 → 임의로 고르지 않는다"""
+    if not rs: return "none", None
+    nq = norm(query)
+    ratio = lambda a: difflib.SequenceMatcher(None, nq, norm(a.get("trackName"))).ratio()
+    strong = [a for a in rs if norm(a.get("trackName")) == nq or ratio(a) >= 0.85]
+    if len({a.get("artistId") or a.get("sellerName") for a in strong}) >= 2: return "select", None
+    if strong: return "ok", strong[0]
+    top = rs[0]
+    if nq in norm(top.get("trackName")) or ratio(top) >= 0.5: return "close", top
+    return "select", None
+
+def _cand(a):
+    return {"track_id": a.get("trackId"), "name": a.get("trackName"), "seller": a.get("sellerName"),
+            "url": a.get("trackViewUrl"), "rating_count": a.get("userRatingCount")}
+
 # ---------- 전체 파이프라인 ----------
-def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, research=True):
-    query, steps, notes, sigs, checks, sources = query.strip(), [], [], [], [], set()
+
+def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, research=True, url=None):
+    query, url = (query or "").strip(), (url or "").strip()
+    if re.match(r"https?://", query) and not url: url, query = query, ""   # 이름 칸에 주소를 넣어도 주소로 취급
+    steps, notes, sigs, checks, sources = [], [], [], [], set()
     store, cands, site, repo, site_url, cc = None, [], None, None, None, "kr"
     mismatch = False                                       # 검색어와 다른 앱이 잡혔는가
-    if re.match(r"https?://", query):                       # URL을 직접 넣은 경우
-        if "github.com" in query: repo_url = repo_url or query
-        else: site_url = query
-    elif track_id:
+    user_url = None
+    if url:                                                 # 주소를 직접 넣은 경우
+        if "github.com" in url: repo_url = repo_url or url
+        else:
+            url, err = check_url(url)                       # 주소가 유효한지 먼저 확인
+            if err: return {"name": query or url, "error": err}
+            site_url = user_url = url
+    if track_id:
         store, cc = itunes_lookup(track_id)
-    else:
+    elif query:                                             # 앱 이름으로 검색 (기존 iTunes 검색 재사용)
         rs, cc = itunes_search(query)
-        store, cands = (rs[0] if rs else None), rs[1:5]
-        # 수정: 검색어와 이름이 많이 다른 앱이 잡히면 경고를 남긴다
-        if store and norm(query) not in norm(store.get("trackName")) and \
-                difflib.SequenceMatcher(None, norm(query), norm(store.get("trackName"))).ratio() < 0.5:
-            mismatch = True
-            notes.append(f"'{query}'와 이름이 비슷한 앱을 찾지 못했어요. 가장 가까운 '{store.get('trackName')}'로 분석했으니 맞는 앱인지 확인하세요. 영문 이름(예: Pieceful)으로도 검색해 보세요.")
-    name = (store or {}).get("trackName") or query
+        kind, pick = choose_app(query, rs)
+        if kind == "select":                                # 불확실하면 임의로 정하지 않고 후보를 보여 준다
+            return {"name": query, "needs_selection": True,
+                    "message": f"'{query}'에 해당하는 앱이 여러 개이거나 확실하지 않아요. 분석할 앱을 직접 골라 주세요.",
+                    "candidates": [_cand(a) for a in rs[:6]]}
+        if pick:
+            store, cands = pick, [a for a in rs if a is not pick][:4]
+            if kind == "close":
+                notes.append(f"'{query}'와 이름이 완전히 같은 앱은 없어서 가장 가까운 '{pick.get('trackName')}'로 분석했어요. 맞는 앱인지 확인하세요.")
+    elif not url:
+        return {"name": "", "error": "앱 이름이나 웹사이트 주소를 입력해 주세요."}
+    if store and user_url and not same_app(store, user_url):   # 이름과 주소가 같은 앱인지 확인
+        return {"name": store.get("trackName"), "error": f"입력한 앱 이름과 웹사이트 주소가 같은 앱인지 확인하지 못했어요. "
+                f"App Store의 '{store.get('trackName')}'(개발사 {store.get('sellerName','-')}) 사이트는 {store.get('sellerUrl') or '등록되어 있지 않아요'}. "
+                "이름과 주소를 다시 확인하거나 둘 중 하나만 입력해 보세요."}
+    name = (store or {}).get("trackName") or query or url
     seller = (store or {}).get("sellerName", "")
 
     if store:
@@ -166,7 +232,7 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
         s, q = D.store_signals(store, itunes_siblings(store.get("artistId"), cc)); sigs += s; checks += q
         steps.append({"label": "App Store 정보", "detail": f"{name} · 개발자 {seller} · v{store.get('version','?')}", "url": store.get("trackViewUrl")})
         site_url = site_url or store.get("sellerUrl")
-    elif not re.match(r"https?://", query):
+    elif query:
         notes.append("App Store에서 앱을 찾지 못함 (Google Play 앱이면 URL이나 GitHub 주소를 직접 입력하세요)")
 
     if site_url:
@@ -218,11 +284,6 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
               "commit_messages": [c["msg"][:100] for c in (repo or {}).get("commits", [])[:15]],
               "page_text": (site or {}).get("text", "")[:1200]}
     out = D.evaluate(sigs, checks, sources, D.llm_judge(sample), declared_ai, weights)
-    if mismatch:                                           # 엉뚱한 앱일 수 있으면 판정하지 않는다
-        out["verdict"] = "판단 보류 (검색한 앱과 다를 수 있음)"
-        out["triage"] = "검색한 앱이 맞는지 확인 필요 → 영문 이름으로 다시 검색"
-    elif research:                                         # 한 앱씩 분석할 때만 AI 요약 (일괄 분석은 시간 초과 방지로 건너뜀)
-        out["ai_summary"] = D.llm_summary(out, name)
     return {"name": name, "seller": seller, "steps": steps, "notes": notes, "unconfirmed_repos": unconfirmed,
-            "candidates": [{"track_id": a.get("trackId"), "name": a.get("trackName"), "seller": a.get("sellerName")} for a in cands],
+            "candidates": [_cand(a) for a in cands],
             "research": res, **out}
