@@ -49,7 +49,8 @@ if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
         traceback.print_exc()
 
 class Q(BaseModel):
-    query: str                       # 앱 이름 (또는 URL / GitHub 주소)
+    query: str = ""                  # 앱 이름 (또는 URL / GitHub 주소)
+    url: str | None = None           # 공식 웹사이트 주소 (선택. 이름과 함께 넣으면 같은 앱인지 확인)
     track_id: int | None = None      # 후보 중에서 다른 앱을 고른 경우
     repo: str | None = None          # GitHub 주소를 직접 지정 (선택)
     declared_ai: bool | None = None  # 개발자가 신고한 AI 사용 여부 (선택)
@@ -109,8 +110,8 @@ class Batch(BaseModel):
 
 def analyze_one(q: Q, research: bool = True):
     try:
-        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights(), research)
-        if sb and "error" not in r:
+        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights(), research, q.url)
+        if sb and "error" not in r and not r.get("needs_selection"):
             try:
                 row = sb.table("analyses").insert({
                     "app_name": r.get("name"), "seller": r.get("seller"),
