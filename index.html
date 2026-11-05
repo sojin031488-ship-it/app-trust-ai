@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APP TRUST AI · 앱 심사 보조 도구</title>
+<style>
+:root{--ink:#111936;--sub:#55607a;--line:#e3e8f4;--acc:#4338ca;--acc2:#6366f1;--bg:#f6f8fe;--ai:#c2410c;--hu:#047857}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,'Apple SD Gothic Neo','Nanum Gothic',sans-serif;line-height:1.6}
+a{color:var(--acc)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+nav b{font-size:19px;letter-spacing:.5px}
+nav a{text-decoration:none;font-weight:600;font-size:14px}
+.hero{background:linear-gradient(135deg,#1e1b4b 0%,#4338ca 55%,#6366f1 100%);color:#fff;border-radius:0 0 36px 36px}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;padding-bottom:56px}
+.hero nav a,.hero nav b{color:#fff}
+.hero h1{font-size:40px;line-height:1.25;margin:18px 0 12px}
+.hero p{color:#e0e7ff;font-size:17px;margin:0 0 22px}
+.hero img{width:100%;border-radius:22px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.pill{display:inline-block;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;font-size:13px;margin-right:6px}
+.cta{display:inline-block;background:#fff;color:var(--acc);font-weight:700;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:16px}
+@media(max-width:780px){.hero .wrap{grid-template-columns:1fr}.hero h1{font-size:30px}}
+
+.finder{margin-top:-34px;position:relative}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(30,27,75,.07)}
+.finder .row{display:flex;gap:10px;flex-wrap:wrap}
+.finder input[type=text]{flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cdd5ea;border-radius:12px;font-size:17px}
+.finder input:focus,select:focus{outline:3px solid #c7d2fe;border-color:var(--acc2)}
+button{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;font-size:14px;font-weight:600}
+.adv-toggle{background:none;color:var(--acc);padding:10px 0 0;font-size:14px;font-weight:600}
+#adv{display:none;margin-top:12px;padding-top:14px;border-top:1px dashed var(--line)}
+#adv.on{display:block}
+#adv .g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){#adv .g{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
+#adv input,select{width:100%;padding:11px;border:1.5px solid #cdd5ea;border-radius:10px;font-size:15px}
+.hint{font-size:12.5px;color:var(--sub);margin:4px 0 0}
+.progress{display:none;align-items:center;gap:12px;color:var(--sub)}
+.progress.on{display:flex}
+.spin{width:22px;height:22px;border:3px solid #dbe0f5;border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+
+.scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:16px 0}
+.score{border:1px solid var(--line);border-radius:16px;padding:16px;text-align:center;background:#fbfcff}
+.ring{--v:0;--c:var(--acc);width:104px;height:104px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--v)*1%),#e6eaf6 0)}
+.ring i{width:80px;height:80px;border-radius:50%;background:#fff;display:grid;place-items:center;font-style:normal;font-size:28px;font-weight:800}
+.score span{font-size:13px;color:var(--sub)}
+.big{font-size:21px;font-weight:800;margin:4px 0}
+.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;font-size:14px;background:#eef2ff;color:var(--acc)}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px}
+.t-ai{background:#ffedd5;color:var(--ai)}.t-human{background:#d1fae5;color:var(--hu)}
+.t-strong{background:#111936;color:#fff}.t-medium{background:#e3e8f4;color:#111936}.t-weak{background:#f1f4fb;color:#55607a}
+.flag{background:#fffbeb;border:1px solid #f6e05e;color:#92400e;padding:11px 13px;border-radius:12px;margin:12px 0}
+ul{padding-left:18px;margin:6px 0}li{margin:6px 0}
+.ok{color:var(--hu)}.no{color:#b91c1c}
+.small{font-size:13px;color:var(--sub)}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:14px;border-radius:12px}
+h2{font-size:19px;margin:0 0 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:780px){.two{grid-template-columns:1fr}}
+
+section.info{padding:46px 0 10px}
+section.info h2.t{font-size:26px;text-align:center;margin-bottom:6px}
+section.info .lead{text-align:center;color:var(--sub);margin:0 0 26px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}
+.step .n{width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800;margin-bottom:10px}
+.step h3{margin:0 0 6px;font-size:17px}.step p{margin:0;color:var(--sub);font-size:14.5px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;margin:40px 0}
+.split img{width:100%;border-radius:22px;box-shadow:0 14px 40px rgba(30,27,75,.15)}
+.split h2{font-size:24px}
+.split li{color:var(--sub)}
+@media(max-width:780px){.split{grid-template-columns:1fr}}
+.triage{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tr{border-radius:16px;padding:16px;font-size:14.5px}
+.tr b{display:block;font-size:16px;margin-bottom:4px}
+.g1{background:#ecfdf5}.g2{background:#eef2ff}.g3{background:#fff7ed}.g4{background:#fef2f2}
+footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <nav><b>APP TRUST AI</b><a href="#how">어떻게 동작하나요</a></nav>
+      <span class="pill">앱 심사 보조 도구</span><span class="pill">공개 정보만 사용</span>
+      <h1>이 앱, AI가 만들었을까?<br>근거와 함께 확인하세요</h1>
+      <p>앱 이름만 입력하면 AI 사용 흔적과 완성도를 함께 분석해서, 어떤 앱을 먼저 정밀 심사할지 알려 드립니다.</p>
+      <a class="cta" href="#finder">지금 분석해 보기</a>
+    </div>
+    <img src="hero.png" alt="스마트폰을 돋보기로 살펴보는 앱 심사 일러스트">
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card finder" id="finder">
+    <label for="q" style="font-size:16px">분석할 앱 이름</label>
+    <div class="row">
+      <input id="q" type="text" placeholder="예: 카카오톡" autocomplete="off">
+      <button id="go">분석하기</button>
+    </div>
+    <button class="adv-toggle" id="advBtn" type="button">＋ 더 정확하게 분석하고 싶어요 (선택)</button>
+    <div id="adv">
+      <div class="g">
+        <div>
+          <label for="repo">GitHub 저장소 주소</label>
+          <input id="repo" type="text" placeholder="https://github.com/아이디/저장소">
+          <p class="hint">코드 저장소를 알고 있으면 넣어 주세요. 커밋 기록과 설정 파일까지 살펴봐서 더 정확해져요.</p>
+        </div>
+        <div>
+          <label for="decl">개발자가 신고한 AI 사용 여부</label>
+          <select id="decl"><option value="">모름</option><option value="true">AI 사용함</option><option value="false">AI 사용 안 함</option></select>
+          <p class="hint">신고 내용과 실제 흔적이 다르면 알려 드려요.</p>
+        </div>
+      </div>
+    </div>
+    <div class="progress" id="prog" style="margin-top:14px"><div class="spin"></div><span>분석 중입니다. 최대 1분 정도 걸릴 수 있어요…</span></div>
+  </div>
+
+  <div id="out"></div>
+
+  <section class="info" id="how">
+    <h2 class="t">이렇게 분석해요</h2>
+    <p class="lead">공개된 정보만 읽고, 판결이 아니라 근거를 보여 드립니다.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>자료 모으기</h3><p>앱스토어 정보, 개발사 웹사이트, 코드 저장소를 차례로 확인해요.</p></div>
+      <div class="step"><div class="n">2</div><h3>흔적 찾기</h3><p>AI 도구 설정 파일, 커밋 기록, 기본 템플릿 흔적 같은 단서를 강·중·약으로 나눠요.</p></div>
+      <div class="step"><div class="n">3</div><h3>두 가지 점수</h3><p>AI 생성 가능성과 엔지니어링 완성도를 따로 계산해요.</p></div>
+      <div class="step"><div class="n">4</div><h3>심사 순서 제안</h3><p>두 점수를 조합해서 어떤 앱을 먼저 볼지 분류해요.</p></div>
+    </div>
+
+    <div class="split">
+      <img src="reviewer.png" alt="화면으로 앱을 살펴보는 심사 담당자 일러스트">
+      <div>
+        <h2>심사 담당자를 위한 도구예요</h2>
+        <ul>
+          <li>앱마다 사이트와 코드를 일일이 뒤지는 시간을 줄여 줘요.</li>
+          <li>판단 근거가 목록으로 남아서 사람마다 기준이 달라지는 걸 막아 줘요.</li>
+          <li>심사자가 남긴 최종 판단이 쌓이면 점수 기준을 보정할 수 있어요.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="t" style="font-size:22px">심사 분류는 4가지예요</h2>
+    <div class="triage" style="margin-top:14px">
+      <div class="tr g1"><b>빠른 통과</b>직접 개발 가능성 · 완성도 양호</div>
+      <div class="tr g2"><b>일반 심사</b>AI 활용 · 완성도 양호</div>
+      <div class="tr g3"><b>보완 요청</b>직접 개발 가능성 · 완성도 미흡</div>
+      <div class="tr g4"><b>정밀 심사 우선</b>AI 생성 의심 · 완성도 낮음</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  결과는 확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 개발자 소명을 받으세요.<br>© APP TRUST AI
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SL = {strong:"강", medium:"중", weak:"약"};
+
+$("advBtn").addEventListener("click", () => {
+  const on = $("adv").classList.toggle("on");
+  $("advBtn").textContent = on ? "－ 선택 옵션 닫기" : "＋ 더 정확하게 분석하고 싶어요 (선택)";
+});
+
+async function analyze(trackId){
+  const query = $("q").value.trim();
+  if(!query){ $("q").focus(); return; }
+  const body = {query};
+  if(trackId) body.track_id = trackId;
+  if($("repo").value.trim()) body.repo = $("repo").value.trim();
+  if($("decl").value) body.declared_ai = $("decl").value === "true";
+  $("go").disabled = true;
+  $("prog").classList.add("on");
+  $("out").innerHTML = "";
+  try{
+    const res = await fetch("/api/search", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const txt = await res.text();
+    let data;
+    try{ data = JSON.parse(txt); }
+    catch(_){
+      $("out").innerHTML = `<div class="err"><b>서버가 올바른 답을 주지 못했어요. (상태 코드 ${res.status})</b><br>
+        <span class="small">서버가 보낸 내용: ${esc(txt.slice(0,300))}</span><br>
+        시간 초과일 가능성이 높아요. 앱 이름을 바꿔 다시 시도하거나 잠시 뒤 다시 눌러 보세요.</div>`;
+      data = null;
+    }
+    if(data) render(data);
+  }catch(e){
+    $("out").innerHTML = `<div class="err">요청에 실패했어요: ${esc(e.message)}</div>`;
+  }
+  $("go").disabled = false;
+  $("prog").classList.remove("on");
+  $("out").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+const ring = (v, color) => `<div class="ring" style="--v:${v};--c:${color}"><i>${v}</i></div>`;
+
+function render(d){
+  if(d.error){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  const sigs = (d.signals||[]).map(s =>
+    `<li><span class="tag t-${esc(s.side)}">${s.side==="ai"?"AI 쪽":"사람 쪽"}</span><span class="tag t-${esc(s.strength)}">${SL[s.strength]||""}</span>${esc(s.text)}</li>`).join("") || "<li class='small'>발견된 흔적이 없어요.</li>";
+  const checks = (d.quality_checks||[]).map(c => `<li class="${c.ok?"ok":"no"}">${c.ok?"✔":"✘"} ${esc(c.label)}</li>`).join("");
+  const steps = (d.steps||[]).map(s =>
+    `<li><b>${esc(s.label)}</b>: ${esc(s.detail)} ${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">링크</a>`:""}</li>`).join("");
+  const notes = (d.notes||[]).map(n => `<li>${esc(n)}</li>`).join("");
+  const repos = (d.unconfirmed_repos||[]).map(r =>
+    `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <span class="small">${esc(r.desc||"")}</span></li>`).join("");
+  const cands = (d.candidates||[]).map(c =>
+    `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
+  const q = d.quality_score;
+  $("out").innerHTML = `
+  <div class="card">
+    <div class="big">${esc(d.name)}</div>
+    <div class="small">개발자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
+    <div class="scores">
+      <div class="score">${ring(d.ai_score,"#ea580c")}<span>AI 생성 가능성</span></div>
+      <div class="score">${ring(q==null?0:q,"#059669")}<span>엔지니어링 완성도${q==null?" (자료 없음)":""}</span></div>
+      <div class="score">${ring(d.priority,"#4338ca")}<span>심사 우선순위</span></div>
+    </div>
+    <p class="big">${esc(d.verdict)}</p>
+    <span class="badge">${esc(d.triage)}</span>
+    ${d.declaration_flag?`<div class="flag">⚠ ${esc(d.declaration_flag)}</div>`:""}
+  </div>
+  <div class="two">
+    <div class="card"><h2>판단 근거</h2><ul>${sigs}</ul></div>
+    <div class="card"><h2>완성도 체크</h2><ul>${checks||"<li class='small'>항목 없음</li>"}</ul></div>
+  </div>
+  <div class="card"><h2>수집 과정</h2><ul>${steps}</ul>${notes?`<p class="small">참고</p><ul>${notes}</ul>`:""}
+    ${repos?`<p class="small">확인되지 않은 GitHub 후보</p><ul>${repos}</ul>`:""}</div>
+  ${cands?`<div class="card"><h2>다른 앱 후보</h2>${cands}</div>`:""}
+  ${d.analysis_id?`
+  <div class="card"><h2>심사자 최종 판단 기록</h2>
+    <p class="small">기록이 쌓이면 점수 기준을 보정할 수 있어요.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 앱</option><option value="mixed">혼합</option><option value="human">직접 개발</option></select>
+      <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cdd5ea;border-radius:10px">
+      <button id="rv" data-id="${d.analysis_id}">저장</button>
+    </div>
+    <p id="rvmsg" class="small"></p></div>`:""}
+  <p class="small">${esc(d.disclaimer||"")}</p>`;
+}
+
+$("go").addEventListener("click", () => analyze());
+$("q").addEventListener("keydown", e => { if(e.key==="Enter") analyze(); });
+$("out").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.id === "rv"){
+    b.disabled = true;
+    try{
+      const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
+      const j = await r.json();
+      $("rvmsg").textContent = j.ok ? "저장했어요." : ("저장 실패: " + (j.error||"오류"));
+    }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
+    b.disabled = false;
+  } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
+});
+</script>
+</body>
+</html>
