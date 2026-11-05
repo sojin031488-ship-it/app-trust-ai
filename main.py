@@ -52,9 +52,7 @@ class Q(BaseModel):
     query: str                       # 앱 이름 (또는 URL / GitHub 주소)
     track_id: int | None = None      # 후보 중에서 다른 앱을 고른 경우
     repo: str | None = None          # GitHub 주소를 직접 지정 (선택)
-    declared_ai: bool | None = None  # 참가자가 신고한 AI 사용 여부 (선택)
-    hack_start: str | None = None    # 해커톤 시작일 YYYY-MM-DD (선택)
-    hack_end: str | None = None      # 해커톤 마감일 YYYY-MM-DD (선택)
+    declared_ai: bool | None = None  # 개발자가 신고한 AI 사용 여부 (선택)
 
 class Review(BaseModel):
     analysis_id: int
@@ -111,7 +109,7 @@ class Batch(BaseModel):
 
 def analyze_one(q: Q, research: bool = True):
     try:
-        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights(), research, q.hack_start, q.hack_end)
+        r = collect.run(q.query, q.track_id, q.repo, q.declared_ai, current_weights(), research)
         if sb and "error" not in r:
             try:
                 row = sb.table("analyses").insert({
