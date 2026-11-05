@@ -221,7 +221,7 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
     if mismatch:                                           # 엉뚱한 앱일 수 있으면 판정하지 않는다
         out["verdict"] = "판단 보류 (검색한 앱과 다를 수 있음)"
         out["triage"] = "검색한 앱이 맞는지 확인 필요 → 영문 이름으로 다시 검색"
-    elif research:                                        # 한 앱씩 분석할 때만 AI 요약 (일괄 분석은 시간 초과 방지로 건너뜀)
+    elif research:                                         # 한 앱씩 분석할 때만 AI 요약 (일괄 분석은 시간 초과 방지로 건너뜀)
         out["ai_summary"] = D.llm_summary(out, name)
     return {"name": name, "seller": seller, "steps": steps, "notes": notes, "unconfirmed_repos": unconfirmed,
             "candidates": [{"track_id": a.get("trackId"), "name": a.get("trackName"), "seller": a.get("sellerName")} for a in cands],
