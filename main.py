@@ -3,9 +3,10 @@
         export GITHUB_TOKEN=...        (선택: GitHub API 한도 상향)
         export SUPABASE_URL=...        (선택: 결과 저장)
         export SUPABASE_KEY=...        (선택: 서버 전용 secret 키)
-        export REVIEW_TOKEN=...        (선택: 심사자 판정 저장용 암호. 없으면 누구나 저장 가능)
+        export REVIEW_TOKEN=...        (필수: 심사자 판정 저장용 암호. 없으면 판정 저장이 막힘)
         uvicorn main:app --reload      ->  http://127.0.0.1:8000
 공개된 정보만 읽습니다 (비밀키 탐색·침투 테스트 없음)."""
+import hmac
 import os
 import time
 import traceback
@@ -17,7 +18,26 @@ from pydantic import BaseModel
 import collect
 import detector as D
 
-app = FastAPI()
+# /docs, /redoc, /openapi.json 을 꺼서 내부 API 구조가 공개되지 않게 한다
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+SEC_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    # index.html 이 인라인 스크립트/스타일을 쓰므로 'unsafe-inline' 이 필요하다
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+                              "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+}
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    for k, v in SEC_HEADERS.items():
+        resp.headers.setdefault(k, v)
+    return resp
 
 # Supabase 연결 (환경변수가 없으면 저장 기능만 꺼지고 나머지는 정상 동작)
 sb = None
@@ -97,12 +117,15 @@ def analyze_one(q: Q):
                     "declaration_flag": r.get("declaration_flag"),
                     "signals": r.get("signals"), "raw": r}).execute()
                 r["analysis_id"] = row.data[0]["id"]
-            except Exception:
+            except Exception as e:
+                # Vercel 로그에서 'SAVE_FAIL' 로 검색하면 원인(컬럼 불일치, 권한 등)이 보인다
+                print("SAVE_FAIL", type(e).__name__, str(e)[:500])
                 traceback.print_exc()   # 저장 실패해도 분석 결과는 돌려줌
+                r["saved"] = False
         return r
     except Exception as e:
-        traceback.print_exc()
-        return {"error": f"서버 오류: {type(e).__name__}: {e}"}
+        traceback.print_exc()                       # 자세한 원인은 서버 로그에만 남긴다
+        return {"error": "분석 중 문제가 생겼어요. 잠시 뒤 다시 시도해 주세요."}
 
 @app.post("/api/search")
 def search(q: Q, request: Request):
@@ -131,7 +154,7 @@ def batch(b: Batch, request: Request):
     for n, f in futs.items():
         if f.done():
             try: items.append({"query": n, "data": f.result()}); continue
-            except Exception as e: err = f"{type(e).__name__}"
+            except Exception: err = "분석 중 문제가 생겼어요"
         else:
             err = "시간 초과 (이 앱만 다시 분석해 보세요)"
         items.append({"query": n, "data": {"error": err}})
@@ -143,7 +166,9 @@ def review(r: Review, x_reviewer_token: str | None = Header(default=None)):
     if not sb:
         return JSONResponse({"error": "Supabase 미연결"}, status_code=503)
     token = os.getenv("REVIEW_TOKEN")
-    if token and x_reviewer_token != token:       # 암호를 정해 둔 경우, 틀리면 저장하지 않는다
+    if not token:                                  # 암호가 설정되지 않았으면 아무도 저장할 수 없다
+        return JSONResponse({"error": "서버에 심사자 코드(REVIEW_TOKEN)가 아직 설정되지 않았어요"}, status_code=503)
+    if not hmac.compare_digest((x_reviewer_token or "").encode(), token.encode()):
         return JSONResponse({"error": "심사자 코드가 맞지 않아요"}, status_code=401)
     try:
         sb.table("reviews").insert(r.model_dump()).execute()
@@ -174,4 +199,4 @@ def health(): return {"ok": True, "db": sb is not None}
 def index():
     if os.path.exists("index.html"):
         return FileResponse("index.html")
-    return {"message": "APP TRUST AI 서버가 실행 중이에요. /docs 에서 테스트할 수 있어요."}
+    return {"message": "APP TRUST AI API is running."}
