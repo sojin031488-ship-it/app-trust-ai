@@ -30,6 +30,10 @@ GENERIC = re.compile(r"^(update|fix|changes?|edit|add|create|initial commit|wip|
 
 S = lambda side, strength, text, src: {"side": side, "strength": strength, "text": text, "src": src}
 
+def sig_key(s):
+    """같은 종류의 근거를 하나로 묶는 이름 (숫자와 괄호 뒤 설명은 뺀다)"""
+    return s["src"] + ":" + re.sub(r"[\d,]+", "N", s["text"]).split(" (")[0][:60]
+
 def site_signals(url, site):
     sig, host = [], urlparse(url).netloc.lower()
     html, text, h = site["html"], site["text"], site["headers"]
@@ -116,9 +120,12 @@ def llm_judge(sample):
 
 COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별 충분도 가중치
 
-def evaluate(sigs, checks, sources, llm, declared_ai):
-    ai_pts = min(70, sum(PTS[s["strength"]] for s in sigs if s["side"] == "ai"))
-    h_pts = min(50, sum(PTS[s["strength"]] for s in sigs if s["side"] == "human"))
+def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
+    """weights: {근거 키: 배수}. 심사자 판정으로 보정한 값이며, 없으면 모두 1.0(원래 점수)"""
+    w = weights or {}
+    pts = lambda s: PTS[s["strength"]] * w.get(sig_key(s), 1.0)
+    ai_pts = min(70, sum(pts(s) for s in sigs if s["side"] == "ai"))
+    h_pts = min(50, sum(pts(s) for s in sigs if s["side"] == "human"))
     rule = 30 + ai_pts - h_pts                      # 30 = 임의의 사전값(prior), 실제 데이터로 보정 필요
     strong_ai = any(s["side"] == "ai" and s["strength"] == "strong" for s in sigs)
     strong_h = any(s["side"] == "human" and s["strength"] == "strong" for s in sigs)
@@ -201,3 +208,48 @@ def research_signals(r):
         return [S("ai", "strong", f"공개 자료에서 AI 도구 사용 언급: {ms[0]['claim'][:90]} (출처: {ms[0]['source_url']})", "research")]
     if ms: return [S("ai", "medium", f"AI 도구 관련 언급 {len(ms)}건 발견 (제작 방식에 대한 언급인지 출처 확인 필요)", "research")]
     return []
+
+
+# ---------- 심사자 판정으로 점수 보정 / 정확도 계산 ----------
+MIN_N = 10        # 한 종류의 근거가 이만큼 이상 판정과 비교돼야 점수를 바꾼다
+PRIOR_N = 5       # 데이터가 적을 때 '반반(0.5)'쪽으로 당기는 힘
+
+def _hit(side, label):
+    """근거의 방향과 심사자 판정이 얼마나 맞는지 (1=일치, 0.5=혼합, 0=반대)"""
+    if label == "mixed": return 0.5
+    return 1.0 if label == side else 0.0
+
+def compute_weights(rows):
+    """rows: [{"label": "ai|human|mixed", "signals": [...]}]  ->  {근거 키: {n, precision, weight}}
+    근거가 가리킨 방향이 심사자 판정과 자주 맞으면 점수를 최대 1.5배, 자주 틀리면 최소 0.5배로 바꾼다."""
+    acc = {}
+    for r in rows:
+        seen = set()
+        for sg in r.get("signals") or []:
+            k = sig_key(sg)
+            if k in seen: continue            # 한 분석에서 같은 근거는 한 번만 센다
+            seen.add(k)
+            a = acc.setdefault(k, {"n": 0, "sum": 0.0})
+            a["n"] += 1; a["sum"] += _hit(sg["side"], r["label"])
+    out = {}
+    for k, a in acc.items():
+        p = (a["sum"] + PRIOR_N * 0.5) / (a["n"] + PRIOR_N)       # 적은 데이터는 0.5로 당긴 값
+        wt = round(max(0.5, min(1.5, 0.5 + p)), 2) if a["n"] >= MIN_N else 1.0
+        out[k] = {"n": a["n"], "precision": round(a["sum"] / a["n"], 2), "weight": wt}
+    return out
+
+def predicted_class(ai_score):
+    return "ai" if ai_score >= 70 else "mixed" if ai_score >= 40 else "human"
+
+def accuracy_report(rows):
+    """도구 판정(AI 점수 구간)과 심사자 판정을 비교. '판단 보류'는 정확도에서 뺀다."""
+    labels = ("ai", "mixed", "human")
+    matrix = {p: {l: 0 for l in labels} for p in labels}
+    hold = used = right = 0
+    for r in rows:
+        if str(r.get("verdict") or "").startswith("판단 보류"): hold += 1; continue
+        if r.get("ai_score") is None: continue
+        p = predicted_class(r["ai_score"]); matrix[p][r["label"]] += 1
+        used += 1; right += (p == r["label"])
+    return {"reviews": len(rows), "evaluated": used, "hold": hold,
+            "accuracy": round(right / used, 3) if used else None, "matrix": matrix}
