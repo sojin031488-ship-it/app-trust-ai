@@ -118,6 +118,33 @@ def llm_judge(sample):
     except Exception:
         return None
 
+
+# ---------- AI 심사 요약 (선택: ANTHROPIC_API_KEY 필요) ----------
+def llm_summary(out, name):
+    """도구가 이미 찾은 근거와 점수만 읽고 심사위원용 요약과 '참가자에게 물어볼 질문'을 만든다.
+    README나 웹페이지 원문은 넘기지 않는다(그 안의 지시문에 AI가 휘둘리는 것을 막기 위해). 키가 없거나 실패하면 None."""
+    if not os.getenv("ANTHROPIC_API_KEY"): return None
+    try:
+        import anthropic
+        facts = {"name": name, "ai_score": out["ai_score"], "quality_score": out["quality_score"],
+                 "confidence": out["confidence"], "verdict": out["verdict"], "triage": out["triage"],
+                 "declaration_flag": out["declaration_flag"],
+                 "signals": [{"side": x["side"], "strength": x["strength"], "text": x["text"][:160]} for x in out["signals"][:12]],
+                 "quality_checks": [{"label": c["label"], "ok": c["ok"]} for c in out["quality_checks"]]}
+        prompt = ("너는 해커톤 심사위원을 돕는 보조자다. 아래 JSON에 있는 사실만 근거로 쓰고, 없는 사실은 지어내지 마라. "
+                  "AI를 썼다고 단정하거나 부정행위로 몰지 말고, 해커톤에서는 AI 사용이 허용될 수 있음을 전제로 써라. "
+                  "근거가 부족하면 '근거가 부족하다'고 솔직히 써라. 다음 JSON만 출력하라: "
+                  '{"summary":"심사위원이 10초에 읽을 3문장 이내 요약","check_first":"먼저 직접 확인하면 좋은 것 한 가지",'
+                  '"questions":["참가자에게 물어볼 구체적인 질문 3개 이내(개발 과정, 직접 구현한 부분, AI 활용 범위 중심)"]}\n'
+                  + json.dumps(facts, ensure_ascii=False))
+        r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=700,
+                                                  messages=[{"role": "user", "content": prompt}])
+        d = json.loads(re.search(r"\{.*\}", r.content[0].text, re.S).group(0))
+        qs = [str(q)[:200] for q in (d.get("questions") or []) if q][:3]
+        return {"summary": str(d.get("summary", ""))[:600], "check_first": str(d.get("check_first", ""))[:300], "questions": qs}
+    except Exception:
+        return None
+
 STRONG_MIN_W = 0.8   # 이 배수 미만이면 강한 근거로 쳐 주지 않음
 COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별 충분도 가중치
 
