@@ -19,9 +19,10 @@ nav a{text-decoration:none;font-weight:600;font-size:14px}
 .hero nav a,.hero nav b{color:#fff}
 .hero h1{font-size:40px;line-height:1.25;margin:18px 0 12px}
 .hero p{color:#d4d4d4;font-size:17px;margin:0 0 22px}
+.art .ph{display:flex;gap:18px;justify-content:center;align-items:center;font-size:64px;background:rgba(255,255,255,.12);border-radius:22px;padding:40px 20px}
 .pill{display:inline-block;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;font-size:13px;margin-right:6px}
 .cta{display:inline-block;background:#fff;color:var(--acc);font-weight:700;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:16px}
-@media(max-width:780px){.hero h1{font-size:30px}}
+@media(max-width:780px){.hero .wrap{grid-template-columns:1fr}.hero h1{font-size:30px}}
 
 .finder{margin-top:-34px;position:relative}
 .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)}
@@ -76,6 +77,14 @@ section.info .lead{text-align:center;color:var(--sub);margin:0 0 26px}
 .split h2{font-size:24px}
 .split li{color:var(--sub)}
 @media(max-width:780px){.split{grid-template-columns:1fr}}
+.triage{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tr{border-radius:16px;padding:16px;font-size:14.5px}
+.tr b{display:block;font-size:16px;margin-bottom:4px}
+.g1{background:#fff;border:1px solid #e5e5e5}.g2{background:#eeeeee}.g3{background:#d9d9d9}.g4{background:#111;color:#fff}
+table.mx{border-collapse:collapse;font-size:13px;margin:8px 0}
+table.mx th,table.mx td{border:1px solid #e5e5e5;padding:6px 12px;text-align:center}
+table.mx th{background:#f5f5f5}
+.acc{font-size:34px;font-weight:800}
 footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
 </style>
 </head>
@@ -119,6 +128,11 @@ footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
   </div>
 
   <div id="out"></div>
+
+  <div class="card" id="statsCard" style="margin-top:28px">
+    <h2>도구 정확도 <span class="small">(심사자가 남긴 판정 기준)</span></h2>
+    <div id="stats" class="small">불러오는 중…</div>
+  </div>
 
   <section class="info" id="how">
     <h2 class="t">이렇게 분석해요</h2>
@@ -230,11 +244,39 @@ function render(d){
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 앱</option><option value="mixed">혼합</option><option value="human">직접 개발</option></select>
       <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
+      <input id="tok" type="password" placeholder="심사자 코드 (정한 경우)" value="${esc(localStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
       <button id="rv" data-id="${d.analysis_id}">저장</button>
     </div>
     <p id="rvmsg" class="small"></p></div>`:""}
   <p class="small">${esc(d.disclaimer||"")}</p>`;
 }
+
+const LB = {ai:"AI로 만든 앱", mixed:"혼합", human:"직접 개발"};
+async function loadStats(){
+  const box = $("stats");
+  try{
+    const r = await fetch("/api/stats"); const d = await r.json();
+    if(d.error){ box.textContent = "아직 불러올 수 없어요: " + d.error; return; }
+    if(d.reviews === 0){ box.innerHTML = "아직 심사자 판정이 없어요. 분석 뒤 '심사자 최종 판단 기록'에서 판정을 남기면 여기에 정확도가 쌓여요."; return; }
+    let h = `심사자 판정 <b>${d.reviews}건</b> 중 정확도 계산 대상 <b>${d.evaluated}건</b>, 판단 보류 ${d.hold}건`;
+    if(d.evaluated < 10){ h += `<br>데이터가 적어서 정확도는 아직 참고만 하세요. (${d.evaluated} / 10건)`; }
+    if(d.accuracy != null){
+      h += `<div class="acc">${Math.round(d.accuracy*100)}%</div><span>도구 판정이 심사자 판정과 같았던 비율</span>`;
+      const L = ["ai","mixed","human"];
+      h += `<table class="mx"><tr><th>도구 \\ 심사자</th>${L.map(l=>`<th>${LB[l]}</th>`).join("")}</tr>` +
+           L.map(p=>`<tr><th>${LB[p]}</th>${L.map(l=>`<td>${d.matrix[p][l]}</td>`).join("")}</tr>`).join("") + `</table>`;
+    }
+    const adj = (d.weights||[]).filter(w => w.weight !== 1);
+    if(adj.length){
+      h += `<p><b>판정 데이터로 점수를 바꾼 근거</b> (${d.min_n}건 이상 쌓인 것만)</p><ul>` +
+           adj.map(w => `<li>${esc(w.key.split(":").slice(1).join(":"))} → 점수 ${w.weight}배 <span class="small">(${w.n}건 중 일치율 ${Math.round(w.precision*100)}%)</span></li>`).join("") + `</ul>`;
+    } else {
+      h += `<p class="small">같은 근거가 ${d.min_n}건 이상 쌓이기 전까지는 점수를 바꾸지 않아요.</p>`;
+    }
+    box.innerHTML = h;
+  }catch(e){ box.textContent = "정확도를 불러오지 못했어요."; }
+}
+loadStats();
 
 $("go").addEventListener("click", () => analyze());
 $("q").addEventListener("keydown", e => { if(e.key==="Enter") analyze(); });
@@ -243,10 +285,12 @@ $("out").addEventListener("click", async e => {
   if(b.id === "rv"){
     b.disabled = true;
     try{
-      const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json"},
+      localStorage.setItem("rvtok", $("tok").value);
+      const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json","x-reviewer-token":$("tok").value},
         body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
       const j = await r.json();
-      $("rvmsg").textContent = j.ok ? "저장했어요." : ("저장 실패: " + (j.error||"오류"));
+      $("rvmsg").textContent = j.ok ? "저장했어요. 정확도에 반영돼요." : ("저장 실패: " + (j.error || "입력값을 확인해 주세요"));
+      if(j.ok) loadStats();
     }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
     b.disabled = false;
   } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
