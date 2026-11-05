@@ -7,7 +7,7 @@ import detector as D
 UA = "Mozilla/5.0 (AppTrustAI prototype)"
 norm = lambda s: re.sub(r"[\W_]+", "", (s or "").lower())
 
-def http_get(url, headers=None, timeout=15, max_bytes=800_000):
+def http_get(url, headers=None, timeout=6, max_bytes=800_000):
     req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -51,7 +51,7 @@ def fetch_site_basic(url):
     body = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
     text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", body)).strip()[:3000]
     bundles = []
-    for src in re.findall(r"<script[^>]+src=[\"']([^\"']+)", html, re.I)[:4]:
+    for src in re.findall(r"<script[^>]+src=[\"']([^\"']+)", html, re.I)[:2]:
         s2, _, js = http_get(urljoin(url, src), max_bytes=600_000)
         if s2 == 200: bundles.append(js)
     u = urlparse(url); origin = f"{u.scheme}://{u.netloc}"
@@ -124,6 +124,10 @@ def run(query, track_id=None, repo_url=None, declared_ai=None):
     else:
         rs, cc = itunes_search(query)
         store, cands = (rs[0] if rs else None), rs[1:5]
+        # 수정: 검색어와 이름이 많이 다른 앱이 잡히면 경고를 남긴다
+        if store and norm(query) not in norm(store.get("trackName")) and \
+                difflib.SequenceMatcher(None, norm(query), norm(store.get("trackName"))).ratio() < 0.5:
+            notes.append(f"'{query}'와 이름이 비슷한 앱을 찾지 못했어요. 가장 가까운 '{store.get('trackName')}'로 분석했으니 맞는 앱인지 확인하세요. 영문 이름(예: Pieceful)으로도 검색해 보세요.")
     name = (store or {}).get("trackName") or query
     seller = (store or {}).get("sellerName", "")
 
