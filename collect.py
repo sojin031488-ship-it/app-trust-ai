@@ -141,7 +141,7 @@ def web_research(name, seller, store_url):
         return None, f"웹 리서치 실패: {str(e)[:100]}"
 
 # ---------- 전체 파이프라인 ----------
-def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, research=True, hack_start=None, hack_end=None):
+def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, research=True):
     query, steps, notes, sigs, checks, sources = query.strip(), [], [], [], [], set()
     store, cands, site, repo, site_url, cc = None, [], None, None, None, "kr"
     mismatch = False                                       # 검색어와 다른 앱이 잡혔는가
@@ -167,13 +167,13 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
         steps.append({"label": "App Store 정보", "detail": f"{name} · 개발자 {seller} · v{store.get('version','?')}", "url": store.get("trackViewUrl")})
         site_url = site_url or store.get("sellerUrl")
     elif not re.match(r"https?://", query):
-        notes.append("앱스토어에서 찾지 못함. 해커톤 제출작이면 GitHub 주소나 배포된 웹사이트 주소를 입력하세요")
+        notes.append("App Store에서 앱을 찾지 못함 (Google Play 앱이면 URL이나 GitHub 주소를 직접 입력하세요)")
 
     if site_url:
         site = fetch_site_basic(site_url)
         if site:
             sources.add("site"); s, q = D.site_signals(site_url, site); sigs += s; checks += q
-            steps.append({"label": "배포된 웹사이트", "detail": f"HTML·스크립트 {len(site['bundles'])}개 분석", "url": site_url})
+            steps.append({"label": "개발사/앱 웹사이트", "detail": f"HTML·스크립트 {len(site['bundles'])}개 분석", "url": site_url})
         else: notes.append(f"웹사이트를 열지 못함: {site_url}")
 
     pool = (site["html"] if site else "") + " " + ((store or {}).get("description") or "")
@@ -185,13 +185,13 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
     if repo_url:
         repo = fetch_repo(repo_url)
         if repo:
-            sources.add("repo"); s, q = D.repo_signals(repo, bool(hack_start)); sigs += s; checks += q
+            sources.add("repo"); s, q = D.repo_signals(repo); sigs += s; checks += q
             steps.append({"label": "GitHub 저장소 분석", "detail": f"파일 {len(repo['names'])}개, 커밋 {len(repo['commits'])}건", "url": repo_url})
         else: notes.append("저장소를 읽지 못함 (비공개/주소 오류/API 한도)")
 
     unconfirmed = []
     if not repo:
-        unconfirmed = [{"url": u, "desc": "제출작 페이지에 링크됨 (이 제출작의 저장소인지 확인 필요)", "stars": None} for u in linked]
+        unconfirmed = [{"url": u, "desc": "개발자 페이지에 링크됨 (이 앱의 저장소인지 확인 필요)", "stars": None} for u in linked]
         if store:
             unconfirmed += [x for x in github_candidates(name, seller) if x["url"] not in {u["url"] for u in unconfirmed}]
     if not research:                                       # 일괄 분석: 시간 초과를 막으려고 웹 리서치는 건너뜀
@@ -218,9 +218,6 @@ def run(query, track_id=None, repo_url=None, declared_ai=None, weights=None, res
               "commit_messages": [c["msg"][:100] for c in (repo or {}).get("commits", [])[:15]],
               "page_text": (site or {}).get("text", "")[:1200]}
     out = D.evaluate(sigs, checks, sources, D.llm_judge(sample), declared_ai, weights)
-    if hack_start:                                         # 해커톤 기간 확인 (점수에는 반영하지 않음)
-        if repo: out["hackathon"] = D.hackathon_check(repo, hack_start, hack_end)
-        else: out["hackathon"] = {"error": "GitHub 저장소 주소가 있어야 커밋 날짜로 기간을 확인할 수 있어요"}
     if mismatch:                                           # 엉뚱한 앱일 수 있으면 판정하지 않는다
         out["verdict"] = "판단 보류 (검색한 앱과 다를 수 있음)"
         out["triage"] = "검색한 앱이 맞는지 확인 필요 → 영문 이름으로 다시 검색"
