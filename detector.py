@@ -1,286 +1,354 @@
-"""APP TRUST AI - 바이브코딩 판별 로직 (외부 의존성 없음, 단독 테스트 가능)
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APP TRUST AI · 해커톤 제출작 심사 보조 도구</title>
+<meta name="description" content="해커톤·공모전 제출작의 AI 활용 흔적과 완성도 신호를 근거와 함께 보여 주는 심사 보조 도구. 정밀 검토가 필요한 제출작을 먼저 가려냅니다.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="APP TRUST AI · 해커톤 제출작 심사 보조 도구">
+<meta property="og:description" content="제출작의 깃허브·배포 주소만 넣으면 AI 사용 흔적과 완성도 신호를 근거와 함께 보여 줍니다.">
+<meta name="theme-color" content="#111111">
+<style>
+:root{--ink:#111111;--sub:#6b6b6b;--line:#e5e5e5;--acc:#111111;--acc2:#333333;--bg:#f5f5f5;--ai:#111111;--hu:#111111}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,'Apple SD Gothic Neo','Nanum Gothic',sans-serif;line-height:1.6}
+a{color:var(--acc)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+nav b{font-size:19px;letter-spacing:.5px}
+nav a{text-decoration:none;font-weight:600;font-size:14px}
+.hero{background:linear-gradient(135deg,#0a0a0a 0%,#1f1f1f 60%,#3a3a3a 100%);color:#fff;border-radius:0 0 36px 36px}
+.hero .wrap{padding-bottom:64px;max-width:820px}
+.hero nav a,.hero nav b{color:#fff}
+.hero h1{font-size:40px;line-height:1.25;margin:18px 0 12px}
+.hero p{color:#d4d4d4;font-size:17px;margin:0 0 22px}
+.art .ph{display:flex;gap:18px;justify-content:center;align-items:center;font-size:64px;background:rgba(255,255,255,.12);border-radius:22px;padding:40px 20px}
+.pill{display:inline-block;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;font-size:13px;margin-right:6px}
+.cta{display:inline-block;background:#fff;color:var(--acc);font-weight:700;padding:13px 26px;border-radius:12px;text-decoration:none;font-size:16px}
+@media(max-width:780px){.hero .wrap{grid-template-columns:1fr}.hero h1{font-size:30px}}
 
-핵심 아이디어
-1) 증거를 '강/중/약' 세기로 나눠 근거와 함께 제시 (판결이 아니라 심사 보조 지표)
-2) 두 축으로 평가: AI 생성 가능성 x 엔지니어링 완성도  ->  심사 분류 권고(triage)
-3) 증거 충분도(신뢰도)를 따로 계산, 근거가 부족하면 '판단 보류'
-4) 개발자가 AI 사용을 공개했는지와 비교해 불일치를 표시 (앱스토어 정책 연계)
-"""
-import json, os, re
-from datetime import datetime, timezone
-from urllib.parse import urlparse
+.finder{margin-top:-34px;position:relative}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(0,0,0,.07)}
+.finder .row{display:flex;gap:10px;flex-wrap:wrap}
+.finder input[type=text]{flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:17px}
+.finder input:focus,select:focus{outline:3px solid #bdbdbd;border-color:var(--acc2)}
+button{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;font-size:14px;font-weight:600}
+.adv-toggle{background:none;color:var(--acc);padding:10px 0 0;font-size:14px;font-weight:600}
+#adv{display:none;margin-top:12px;padding-top:14px;border-top:1px dashed var(--line)}
+#adv.on{display:block}
+#adv .g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){#adv .g{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
+#adv input,select{width:100%;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px;font-size:15px}
+.hint{font-size:12.5px;color:var(--sub);margin:4px 0 0}
+.progress{display:none;align-items:center;gap:12px;color:var(--sub)}
+.progress.on{display:flex}
+.spin{width:22px;height:22px;border:3px solid #dddddd;border-top-color:var(--acc);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
 
-PTS = {"strong": 40, "medium": 15, "weak": 5}
+.scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:16px 0}
+.score{border:1px solid var(--line);border-left:5px solid #111;border-radius:6px;padding:16px;text-align:left;background:#fafafa}
+.meter{height:14px;background:#e5e5e5;border-radius:3px;overflow:hidden;margin:10px 0 6px}
+.meter b{display:block;height:100%;background:var(--c,#111)}
+.num{font-size:34px;font-weight:800;line-height:1;text-align:left}
+.score span{font-size:13px;color:var(--sub)}
+.big{font-size:21px;font-weight:800;margin:4px 0}
+.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;font-size:14px;background:#eeeeee;color:var(--acc)}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px}
+.t-ai{background:#111;color:#fff}.t-human{background:#d9d9d9;color:#111}
+.t-strong{background:#111;color:#fff}.t-medium{background:#bdbdbd;color:#111}.t-weak{background:#ececec;color:#6b6b6b}
+.flag{background:#f0f0f0;border:1px solid #bdbdbd;color:#111;padding:11px 13px;border-radius:12px;margin:12px 0}
+ul{padding-left:18px;margin:6px 0}li{margin:6px 0}
+.ok{color:#111}.no{color:#8a8a8a}
+.small{font-size:13px;color:var(--sub)}
+.err{background:#f0f0f0;border:1px solid #9a9a9a;color:#111;padding:14px;border-radius:12px}
+h2{font-size:19px;margin:0 0 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:780px){.two{grid-template-columns:1fr}}
 
-# ※ 아래 패턴 목록은 출발점입니다. 실제 도구 산출물을 확인하며 계속 추가/검증하세요.
-AI_HOSTS = ("lovable.app", "lovable.dev", "lovableproject.com", "bolt.host", "bolt.new",
-            "replit.app", "repl.co", "v0.dev", "v0.app", "base44.app")
-HTML_STRONG = [(r"gptengineer|gpteng\.co|lovable\.dev", "Lovable(구 GPT Engineer) 흔적이 HTML에 남아 있음")]
-DEFAULT_TITLE = r"<title>\s*(Vite \+ React|Vite App|Create Next App|React App)[^<]*</title>"
-STACK = [r"bg-gradient-to-", r"lucide", r"data-radix|@radix-ui", r"backdrop-blur",
-         r"from-(purple|violet|indigo|blue|pink)-\d+"]
-REPO_AI_FILES = {".cursorrules": "Cursor", ".cursor": "Cursor", "CLAUDE.md": "Claude Code",
-                 ".claude": "Claude Code", "AGENTS.md": "AI 코딩 에이전트", ".windsurfrules": "Windsurf",
-                 ".clinerules": "Cline", ".lovable": "Lovable", ".bolt": "Bolt",
-                 "GEMINI.md": "Gemini CLI", ".aider.conf.yml": "Aider"}
-COAUTH = re.compile(r"co-authored-by:[^\n]*(claude|copilot|cursor|codex|gemini|devin|aider)"
-                    r"|generated with[^\n]*(claude|cursor|copilot)|🤖", re.I)
-BOT = re.compile(r"lovable|gpt-engineer|v0\[bot\]|copilot", re.I)
-GENERIC = re.compile(r"^(update|fix|changes?|edit|add|create|initial commit|wip|commit)\b.{0,40}$", re.I)
+section.info{padding:46px 0 10px}
+section.info h2.t{font-size:26px;text-align:center;margin-bottom:6px}
+section.info .lead{text-align:center;color:var(--sub);margin:0 0 26px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.step{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}
+.step .n{width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:800;margin-bottom:10px}
+.step h3{margin:0 0 6px;font-size:17px}.step p{margin:0;color:var(--sub);font-size:14.5px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center;margin:40px 0}
+.art2{font-size:110px;text-align:center;background:#eeeeee;border-radius:22px;padding:30px}
+.split h2{font-size:24px}
+.split li{color:var(--sub)}
+@media(max-width:780px){.split{grid-template-columns:1fr}}
+.triage{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tr{border-radius:16px;padding:16px;font-size:14.5px}
+.tr b{display:block;font-size:16px;margin-bottom:4px}
+.g1{background:#fff;border:1px solid #e5e5e5}.g2{background:#eeeeee}.g3{background:#d9d9d9}.g4{background:#111;color:#fff}
+table.mx{border-collapse:collapse;font-size:13px;margin:8px 0}
+table.mx th,table.mx td{border:1px solid #e5e5e5;padding:6px 12px;text-align:center}
+table.mx th{background:#f5f5f5}
+.acc{font-size:34px;font-weight:800}
+footer{text-align:center;color:var(--sub);font-size:13px;padding:34px 0 50px}
+</style>
+</head>
+<body>
 
-S = lambda side, strength, text, src: {"side": side, "strength": strength, "text": text, "src": src}
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <nav><b>APP TRUST AI</b></nav>
+      <span class="pill">해커톤 심사 보조 도구</span><span class="pill">공개 정보만 사용</span>
+      <h1>이 제출작, AI가 만들었을까?<br>근거와 함께 확인하세요</h1>
+      <p>제출작의 깃허브나 배포 주소를 넣으면 AI 사용 흔적과 완성도 신호를 함께 분석해서, 어떤 제출작을 먼저 정밀 검토할지 알려 드립니다.</p>
+      <a class="cta" href="#finder">지금 분석해 보기</a>
+    </div>
+  </div>
+</header>
 
-def sig_key(s):
-    """같은 종류의 근거를 하나로 묶는 이름 (숫자와 괄호 뒤 설명은 뺀다)"""
-    return s["src"] + ":" + re.sub(r"[\d,]+", "N", s["text"]).split(" (")[0][:60]
+<main class="wrap">
+  <div class="card finder" id="finder">
+    <label for="q" style="font-size:16px">분석할 제출작 주소 (깃허브 또는 배포 URL)</label>
+    <div class="row">
+      <input id="q" type="text" placeholder="예: https://github.com/아이디/저장소 또는 https://내서비스.vercel.app" autocomplete="off">
+      <button id="go">분석하기</button>
+    </div>
+    <button class="adv-toggle" id="advBtn" type="button">＋ 깃허브 주소와 AI 사용 신고 내용도 함께 넣기 (선택)</button>
+    <div id="adv">
+      <div class="g">
+        <div>
+          <label for="repo">GitHub 저장소 주소</label>
+          <input id="repo" type="text" placeholder="https://github.com/아이디/저장소 (배포 주소를 넣었을 때 함께 분석)">
+          <p class="hint">코드 저장소를 알고 있으면 넣어 주세요. 커밋 기록과 설정 파일까지 살펴봐서 더 정확해져요.</p>
+        </div>
+        <div>
+          <label for="decl">참가자가 신고한 AI 사용 여부</label>
+          <select id="decl"><option value="">모름</option><option value="true">AI 사용함</option><option value="false">AI 사용 안 함</option></select>
+          <p class="hint">신고 내용과 실제 흔적이 다르면 알려 드려요.</p>
+        </div>
+      </div>
+    </div>
+    <div class="progress" id="prog" style="margin-top:14px"><div class="spin"></div><span>분석 중입니다. 최대 1분 정도 걸릴 수 있어요…</span></div>
+  </div>
 
-def site_signals(url, site):
-    sig, host = [], urlparse(url).netloc.lower()
-    html, text, h = site["html"], site["text"], site["headers"]
-    pool = html + "\n" + "\n".join(site["bundles"])
-    for d in AI_HOSTS:
-        if host.endswith(d):
-            sig.append(S("ai", "strong", f"AI 앱 빌더 도메인에서 호스팅됨 ({d})", "site"))
-    for pat, label in HTML_STRONG:
-        if re.search(pat, html, re.I): sig.append(S("ai", "strong", label, "site"))
-    default_title = bool(re.search(DEFAULT_TITLE, html, re.I))
-    if default_title: sig.append(S("ai", "medium", "기본 템플릿 제목이 그대로 남아 있음", "site"))
-    if "vite.svg" in html: sig.append(S("ai", "medium", "기본 Vite 파비콘을 교체하지 않음", "site"))
-    if re.search(r"lorem ipsum|john doe", text, re.I): sig.append(S("ai", "weak", "더미 문구(Lorem ipsum 등)가 남아 있음", "site"))
-    if sum(bool(re.search(p, pool, re.I)) for p in STACK) >= 4:
-        sig.append(S("ai", "medium", "AI 빌더에서 흔한 기본 스택 조합(Tailwind 그라데이션+shadcn/Radix+lucide). 사람도 많이 쓰므로 단독 근거는 약함", "site"))
-    if len(re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", text)) >= 6:
-        sig.append(S("ai", "weak", "화면 문구에 이모지가 많음", "site"))
-    p = site["probe"]
-    sec = sum(k in h for k in ("content-security-policy", "strict-transport-security", "x-content-type-options"))
-    q = [("HTTPS 사용", url.startswith("https"), 1),
-         ("보안 헤더 2개 이상 (CSP/HSTS/nosniff)", sec >= 2, 2),
-         ("meta description", bool(re.search(r'name=["\']description["\']', html, re.I)), 1),
-         ("Open Graph 태그", "og:title" in html, 1),
-         ("html lang 속성", bool(re.search(r"<html[^>]+lang=", html, re.I)), 1),
-         ("기본 제목/파비콘 교체", not default_title and "vite.svg" not in html, 1),
-         ("robots.txt 제공", p["robots"], 1),
-         ("없는 경로를 404로 처리", p["404"], 1)]
-    imgs = re.findall(r"<img\b[^>]*>", html, re.I)
-    if imgs: q.append(("이미지 alt 90% 이상", sum("alt=" in i for i in imgs) / len(imgs) >= 0.9, 1))
-    return sig, q
+  <div class="card" id="batchCard">
+    <h2>여러 제출작 한꺼번에 분석 <span class="small">(최대 10개)</span></h2>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap">
+      <input id="bq" type="text" placeholder="주소를 쉼표나 띄어쓰기로 구분해서 적어 주세요. 예: https://github.com/a/b https://github.com/c/d" autocomplete="off" style="flex:1;min-width:220px;padding:15px 16px;border:1.5px solid #cfcfcf;border-radius:12px;font-size:16px;font-family:inherit">
+      <button id="bgo" type="button">일괄 분석</button>
+    </div>
+    <div style="margin-top:10px"><span id="bmsg" class="small">주소(또는 앱 이름) 사이에 쉼표(,)나 띄어쓰기를 넣으면 최대 10개까지 한 번에 분석해요.</span></div>
+    <div id="bout" style="margin-top:14px;overflow-x:auto"></div>
+  </div>
 
-def repo_signals(repo):
-    sig, names, gh, pkg, cm = [], repo["names"], repo["gh_names"], repo["pkg"], repo["commits"]
-    for f, tool in REPO_AI_FILES.items():
-        if f in names: sig.append(S("ai", "strong", f"{tool} 설정 파일 발견: {f}", "repo"))
-    if ".replit" in names: sig.append(S("ai", "medium", "Replit 설정 파일 발견 (사람도 사용)", "repo"))
-    if "copilot-instructions.md" in gh: sig.append(S("ai", "strong", "Copilot 지침 파일 발견", "repo"))
-    if "lovable-tagger" in json.dumps(pkg): sig.append(S("ai", "strong", "package.json에 lovable-tagger 의존성", "repo"))
-    n = len(cm)
-    hits = [c for c in cm if COAUTH.search(c["msg"]) or BOT.search(c["author"] + " " + c["login"])]
-    if hits: sig.append(S("ai", "strong", f"커밋 {len(hits)}건에서 AI 도구 흔적(공동 저자 표기/봇 계정)", "repo"))
-    if n >= 10:
-        generic = sum(bool(GENERIC.match((c["msg"].splitlines() or [""])[0].strip())) for c in cm)
-        if generic / n >= 0.6: sig.append(S("ai", "medium", f"커밋 메시지 {generic}/{n}건이 'Update ...' 류의 기계적 문구", "repo"))
-    span = None
-    try:
-        ds = sorted(datetime.fromisoformat(c["date"].replace("Z", "+00:00")) for c in cm)
-        span = (ds[-1] - ds[0]).days if ds else None
-    except Exception: pass
-    if n >= 3 and span is not None and span <= 2:
-        sig.append(S("ai", "weak", "전체 커밋이 2일 이내에 몰려 있음 (해커톤 프로젝트면 정상)", "repo"))
-    if n >= 50 and span is not None and span >= 30:
-        sig.append(S("human", "medium", f"{span}일에 걸친 꾸준한 커밋 이력 ({n}건+)", "repo"))
-    if len({c["login"] or c["author"] for c in cm}) >= 2:
-        sig.append(S("human", "medium", "둘 이상의 기여자가 존재", "repo"))
-    tests = any(re.match(r"(tests?|__tests__|spec)$", x, re.I) or re.search(r"\.(test|spec)\.", x) for x in names) \
-            or bool(pkg.get("scripts", {}).get("test"))
-    ci = "workflows" in gh
-    lint = any(re.match(r"(\.eslintrc|eslint\.config|\.prettierrc|ruff\.toml|\.flake8|biome\.json)", x) for x in names) \
-           or "eslint" in json.dumps(pkg.get("devDependencies", {}))
-    if tests and ci: sig.append(S("human", "medium", "테스트와 CI 구성이 함께 존재", "repo"))
-    q = [("자동 테스트 존재", tests, 3), ("CI 설정(.github/workflows)", ci, 2), ("린터/포매터 설정", lint, 1),
-         ("README 충실(1,500자+)", len(repo["readme"]) >= 1500, 1),
-         ("LICENSE", any(x.upper().startswith("LICENSE") for x in names), 1),
-         (".env.example 제공", bool({".env.example", ".env.sample"} & names), 1),
-         ("Docker 구성", bool({"Dockerfile", "docker-compose.yml"} & names), 1)]
-    return sig, q
+  <label class="small" style="display:flex;gap:8px;align-items:center;font-weight:500;margin:0 0 10px"><input type="checkbox" id="blind" style="width:auto"> 블라인드 모드: 판정을 남기기 전까지 도구의 점수·판정을 가려요 (판정이 도구에 끌려가지 않게)</label>
+  <div id="out"></div>
 
-def llm_judge(sample):
-    """보조 증거(가중 15%). 키가 없거나 실패하면 None."""
-    if not os.getenv("ANTHROPIC_API_KEY"): return None
-    try:
-        import anthropic
-        prompt = ("앱 스토어 심사 보조자로서, 아래 자료만 근거로 이 앱이 AI 코딩 도구(바이브코딩)로 만들어졌을 가능성을 0~100으로 추정하라. "
-                  "출시일, 평가 수, 언어 수 같은 스토어 정보도 판단에 쓰고, 사람이 만들었다고 볼 근거(오래된 출시일, 많은 평가 수)와 AI로 만들었다고 볼 근거를 모두 따져 보라. 정말 자료가 없을 때만 50 근처로 두라. 확정적으로 단정하지 말 것. "
-                  'JSON만 출력: {"ai_likelihood":0,"observations":["관찰 근거"]}\n' + json.dumps(sample, ensure_ascii=False)[:9000])
-        r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=600,
-                                                  messages=[{"role": "user", "content": prompt}])
-        d = json.loads(re.sub(r"```json|```", "", r.content[0].text).strip())
-        d["ai_likelihood"] = max(0, min(100, int(d["ai_likelihood"])))
-        return d
-    except Exception:
-        return None
+  <div class="card" id="statsCard" style="margin-top:28px">
+    <h2>도구 정확도 <span class="small">(심사자가 남긴 판정 기준)</span></h2>
+    <div id="stats" class="small">불러오는 중…</div>
+  </div>
 
+  <section class="info" id="how">
+    <h2 class="t">이렇게 분석해요</h2>
+    <p class="lead">공개된 정보만 읽고, 판결이 아니라 근거를 보여 드립니다.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>자료 모으기</h3><p>코드 저장소, 배포된 웹사이트, 앱스토어 정보를 차례로 확인해요.</p></div>
+      <div class="step"><div class="n">2</div><h3>흔적 찾기</h3><p>AI 도구 설정 파일, 커밋 기록, 기본 템플릿 흔적 같은 단서를 강·중·약으로 나눠요.</p></div>
+      <div class="step"><div class="n">3</div><h3>두 가지 점수</h3><p>AI 생성 가능성과 공개 자료 기준 완성도 신호를 따로 계산해요.</p></div>
+      <div class="step"><div class="n">4</div><h3>심사 순서 제안</h3><p>두 점수를 조합해서 어떤 제출작을 먼저 볼지 분류해요.</p></div>
+    </div>
 
-# ---------- AI 심사 요약 (선택: ANTHROPIC_API_KEY 필요) ----------
-def llm_summary(out, name):
-    """도구가 이미 찾은 근거와 점수만 읽고 심사위원용 요약과 '참가자에게 물어볼 질문'을 만든다.
-    README나 웹페이지 원문은 넘기지 않는다(그 안의 지시문에 AI가 휘둘리는 것을 막기 위해). 키가 없거나 실패하면 None."""
-    if not os.getenv("ANTHROPIC_API_KEY"): return None
-    try:
-        import anthropic
-        facts = {"name": name, "ai_score": out["ai_score"], "quality_score": out["quality_score"],
-                 "confidence": out["confidence"], "verdict": out["verdict"], "triage": out["triage"],
-                 "declaration_flag": out["declaration_flag"],
-                 "signals": [{"side": x["side"], "strength": x["strength"], "text": x["text"][:160]} for x in out["signals"][:12]],
-                 "quality_checks": [{"label": c["label"], "ok": c["ok"]} for c in out["quality_checks"]]}
-        prompt = ("너는 해커톤 심사위원을 돕는 보조자다. 아래 JSON에 있는 사실만 근거로 쓰고, 없는 사실은 지어내지 마라. "
-                  "AI를 썼다고 단정하거나 부정행위로 몰지 말고, 해커톤에서는 AI 사용이 허용될 수 있음을 전제로 써라. "
-                  "근거가 부족하면 '근거가 부족하다'고 솔직히 써라. 다음 JSON만 출력하라: "
-                  '{"summary":"심사위원이 10초에 읽을 3문장 이내 요약","check_first":"먼저 직접 확인하면 좋은 것 한 가지",'
-                  '"questions":["참가자에게 물어볼 구체적인 질문 3개 이내(개발 과정, 직접 구현한 부분, AI 활용 범위 중심)"]}\n'
-                  + json.dumps(facts, ensure_ascii=False))
-        r = anthropic.Anthropic().messages.create(model="claude-sonnet-4-6", max_tokens=700,
-                                                  messages=[{"role": "user", "content": prompt}])
-        d = json.loads(re.search(r"\{.*\}", r.content[0].text, re.S).group(0))
-        qs = [str(q)[:200] for q in (d.get("questions") or []) if q][:3]
-        return {"summary": str(d.get("summary", ""))[:600], "check_first": str(d.get("check_first", ""))[:300], "questions": qs}
-    except Exception:
-        return None
+  </section>
+</main>
 
-STRONG_MIN_W = 0.8   # 이 배수 미만이면 강한 근거로 쳐 주지 않음
-COV = {"repo": 40, "store": 25, "site": 15, "research": 15}   # 증거 출처별 충분도 가중치
+<footer>
+  결과는 확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 참가자 소명을 받으세요.<br>© APP TRUST AI
+</footer>
 
-def evaluate(sigs, checks, sources, llm, declared_ai, weights=None):
-    """weights: {근거 키: 배수}. 심사자 판정으로 보정한 값이며, 없으면 모두 1.0(원래 점수)"""
-    w = weights or {}
-    pts = lambda s: PTS[s["strength"]] * w.get(sig_key(s), 1.0)
-    ai_pts = min(70, sum(pts(s) for s in sigs if s["side"] == "ai"))
-    h_pts = min(50, sum(pts(s) for s in sigs if s["side"] == "human"))
-    rule = 30 + ai_pts - h_pts                      # 30 = 임의의 사전값(prior), 실제 데이터로 보정 필요
-    # 심사자 판정으로 배수가 0.8 아래로 떨어진(=자주 틀린) 강한 근거는 '점수 고정(85/20)' 대상에서 뺀다.
-    # 안 그러면 오탐이 가장 큰 강한 근거만 보정을 피하게 된다.
-    ok_strong = lambda s: s["strength"] == "strong" and w.get(sig_key(s), 1.0) >= STRONG_MIN_W
-    strong_ai = any(s["side"] == "ai" and ok_strong(s) for s in sigs)
-    strong_h = any(s["side"] == "human" and ok_strong(s) for s in sigs)
-    strong = strong_ai or strong_h                  # 어느 쪽이든 강한 근거가 있는가
-    ai = rule if llm is None else 0.85 * rule + 0.15 * llm["ai_likelihood"]
-    if strong_ai and strong_h: ai = 55               # 양쪽 강한 근거 -> 혼합
-    elif strong_ai: ai = max(ai, 85)
-    elif strong_h: ai = min(ai, 20)                  # 사람 쪽 강한 근거 -> AI 점수 20 이하
-    ai = round(max(0, min(100, ai)))
-    qual = round(100 * sum(w for _, ok, w in checks if ok) / max(1, sum(w for *_, w in checks))) if checks else None
-    cov = sum(COV[k] for k in sources) + (5 if llm else 0)
-    conf = "높음" if cov >= 60 else "보통" if cov >= 35 else "낮음"
-    # 수정: 증거(signals)가 하나도 없으면 '직접 제작'이라고 단정하지 않고 판단 보류
-    hold = (conf == "낮음" or not sigs) and not strong
-    if hold: verdict = "판단 보류 (근거 부족)"
-    elif ai >= 70: verdict = "AI 도구 사용 가능성 높음 (바이브코딩 의심)"
-    elif ai >= 40: verdict = "AI 보조 개발 가능성 (혼합)"
-    else: verdict = "개발자 직접 제작 가능성 높음"
-    q = qual if qual is not None else 50
-    if hold: triage = "근거 부족 → 심사자가 직접 확인"
-    elif ai >= 65 and q >= 60: triage = "AI 활용 · 완성도 양호 → 일반 검토"
-    elif ai >= 65: triage = "AI 생성 의심 · 완성도 낮음 → 정밀 검토 우선"
-    elif q >= 60: triage = "직접 개발 가능성 · 완성도 양호 → 빠른 검토"
-    else: triage = "직접 개발 가능성 · 완성도 미흡 → 보완 확인"
-    flag = None
-    if declared_ai is False and (strong or ai >= 65): flag = "AI 미사용으로 신고했으나 AI 흔적이 발견됨 → 참가자 소명 요청 권고"
-    elif declared_ai is True and ai < 40: flag = "AI 사용을 신고했으나 코드/페이지의 흔적은 적음 (정상일 수 있음)"
-    return {"ai_score": ai, "quality_score": qual, "confidence": conf, "verdict": verdict, "triage": triage,
-            "priority": round(ai * (100 - q) / 100), "declaration_flag": flag,
-            "signals": sorted(sigs, key=lambda s: -PTS[s["strength"]]),
-            "quality_checks": [{"label": l, "ok": ok} for l, ok, _ in checks],
-            "llm": llm, "disclaimer": "확정 판결이 아닌 심사 보조 지표입니다. 근거를 확인하고 필요하면 참가자 소명을 받으세요."}
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SL = {strong:"강", medium:"중", weak:"약"};
 
+$("advBtn").addEventListener("click", () => {
+  const on = $("adv").classList.toggle("on");
+  $("advBtn").textContent = on ? "－ 선택 옵션 닫기" : "＋ 깃허브 주소와 AI 사용 신고 내용도 함께 넣기 (선택)";
+});
 
-# ---------- 스토어 메타데이터 / 웹 리서치 증거 ----------
-def _dt(x):
-    try: return datetime.fromisoformat((x or "").replace("Z", "+00:00"))
-    except Exception: return None
+async function analyze(trackId){
+  const query = $("q").value.trim();
+  if(!query){ $("q").focus(); return; }
+  const body = {query};
+  if(trackId) body.track_id = trackId;
+  if($("repo").value.trim()) body.repo = $("repo").value.trim();
+  if($("decl").value) body.declared_ai = $("decl").value === "true";
+  $("go").disabled = true;
+  $("prog").classList.add("on");
+  $("out").innerHTML = "";
+  try{
+    const res = await fetch("/api/search", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const txt = await res.text();
+    let data;
+    try{ data = JSON.parse(txt); }
+    catch(_){
+      $("out").innerHTML = `<div class="err"><b>서버가 올바른 답을 주지 못했어요. (상태 코드 ${res.status})</b><br>
+        <span class="small">서버가 보낸 내용: ${esc(txt.slice(0,300))}</span><br>
+        시간 초과일 가능성이 높아요. 주소를 확인해 다시 시도하거나 잠시 뒤 다시 눌러 보세요.</div>`;
+      data = null;
+    }
+    if(data) render(data);
+  }catch(e){
+    $("out").innerHTML = `<div class="err">요청에 실패했어요: ${esc(e.message)}</div>`;
+  }
+  $("go").disabled = false;
+  $("prog").classList.remove("on");
+  $("out").scrollIntoView({behavior:"smooth", block:"start"});
+}
 
-CHATGPT_DATE = datetime(2022, 11, 30, tzinfo=timezone.utc)   # 생성형 AI 코딩이 대중화되기 시작한 시점
+const ring = (v, color) => `<div class="num">${v}<small style="font-size:14px;color:#6b6b6b"> / 100</small></div><div class="meter"><b style="width:${v}%;--c:${color}"></b></div>`;
 
-def store_signals(meta, siblings):
-    """meta: iTunes Search API 결과 1건, siblings: 같은 개발자의 앱 목록"""
-    sig, desc = [], meta.get("description", "") or ""
-    rel, cur = _dt(meta.get("releaseDate")), _dt(meta.get("currentVersionReleaseDate"))
-    ratings = meta.get("userRatingCount") or 0
-    langs = len(meta.get("languageCodesISO2A") or [])
-    now = datetime.now(timezone.utc)
-    old_app = bool(rel and rel < CHATGPT_DATE)                      # 2022-11-30 이전 출시
-    big_app = ratings >= 100000
-    if len(re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", desc)) >= 6:
-        sig.append(S("ai", "weak", "스토어 설명에 이모지가 많음", "store"))
-    # --- AI 쪽: 단기간 대량 제작 (오래됐거나 대형 앱은 제외해 오탐을 막음) ---
-    if rel and not old_app and not big_app:
-        near = [a for a in siblings if (d := _dt(a.get("releaseDate"))) and abs((d - rel).days) <= 90]
-        if len(near) >= 3:
-            sig.append(S("ai", "medium", f"같은 개발자가 이 앱 출시 전후 90일 안에 앱 {len(near)}개를 출시 (대량 제작 패턴)", "store"))
-    # --- 사람 쪽: 스토어 정보로 보는 직접 개발 근거 ---
-    if old_app:
-        sig.append(S("human", "strong", f"ChatGPT 공개(2022-11-30) 이전인 {rel.year}년에 출시된 앱", "store"))
-    if ratings >= 100000:
-        sig.append(S("human", "medium", f"평가 수가 {ratings:,}건으로 많음 (오랜 기간 검증된 앱)", "store"))
-    elif ratings >= 10000:
-        sig.append(S("human", "weak", f"평가 수가 {ratings:,}건 (어느 정도 이용자가 있는 앱)", "store"))
-    if rel and cur and (cur - rel).days >= 1095 and (now - cur).days <= 365:
-        sig.append(S("human", "medium", f"출시 후 {round((cur - rel).days / 365)}년 넘게 꾸준히 업데이트됨", "store"))
-    if langs >= 10:
-        sig.append(S("human", "medium", f"{langs}개 언어로 현지화된 앱", "store"))
-    q = [("개발자 웹사이트 등록", bool(meta.get("sellerUrl")), 1),
-         ("릴리스 노트 작성", len(meta.get("releaseNotes") or "") >= 20, 1)]
-    if rel and cur and (now - rel).days >= 30:    # 신규 앱은 업데이트 이력을 따지지 않음
-        q.append(("출시 후 업데이트 이력", (cur - rel).days >= 7, 2))
-    return sig, q
+function render(d){
+  if(d.error){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  const sigs = (d.signals||[]).map(s =>
+    `<li><span class="tag t-${esc(s.side)}">${s.side==="ai"?"AI 쪽":"사람 쪽"}</span><span class="tag t-${esc(s.strength)}">${SL[s.strength]||""}</span>${esc(s.text)}</li>`).join("") || "<li class='small'>발견된 흔적이 없어요.</li>";
+  const checks = (d.quality_checks||[]).map(c => `<li class="${c.ok?"ok":"no"}">${c.ok?"✔":"✘"} ${esc(c.label)}</li>`).join("");
+  const steps = (d.steps||[]).map(s =>
+    `<li><b>${esc(s.label)}</b>: ${esc(s.detail)} ${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">링크</a>`:""}</li>`).join("");
+  const notes = (d.notes||[]).map(n => `<li>${esc(n)}</li>`).join("");
+  const repos = (d.unconfirmed_repos||[]).map(r =>
+    `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <span class="small">${esc(r.desc||"")}</span></li>`).join("");
+  const cands = (d.candidates||[]).map(c =>
+    `<button class="ghost" data-id="${esc(c.track_id)}">${esc(c.name)} · ${esc(c.seller)}</button> `).join("");
+  const q = d.quality_score;
+  const A = d.ai_summary;
+  const aiBox = A ? `<div class="card" id="aibox" style="${$("blind").checked && !!d.analysis_id ? "display:none" : ""}"><h2>AI 심사 요약 <span class="small">(위 근거만 읽고 정리한 글이에요. 확정 판결이 아니에요)</span></h2>
+      <p>${esc(A.summary)}</p>
+      ${A.check_first?`<p><b>먼저 확인할 것</b><br>${esc(A.check_first)}</p>`:""}
+      ${(A.questions||[]).length?`<p><b>참가자에게 물어볼 질문</b></p><ul>${A.questions.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</div>`
+    : (d.analysis_id !== undefined || d.verdict ? `<div class="card small">AI 심사 요약은 한 제출작씩 분석할 때, 서버에 AI 키가 설정되어 있으면 표시돼요.</div>` : "");
+  const blindOn = $("blind").checked && !!d.analysis_id;     // 저장이 안 된 결과는 판정을 남길 수 없으니 가리지 않는다
+  const saveWarn = d.saved===false ? `<div class="flag">⚠ 이번 결과는 저장되지 않았어요. 심사자 판정을 남길 수 없고 정확도에도 반영되지 않아요.</div>` : "";
+  $("out").innerHTML = saveWarn + `
+  <div class="card">
+    <div class="big">${esc(d.name)}</div>
+    <div class="small">제작자: ${esc(d.seller||"-")} · 근거 충분도: <b>${esc(d.confidence)}</b></div>
+    <div id="blindbox" style="${blindOn?"display:none":""}">
+    <div class="scores">
+      <div class="score">${ring(d.ai_score,"#111111")}<span>AI 생성 가능성</span></div>
+      <div class="score">${ring(q==null?0:q,"#6b6b6b")}<span>공개 자료 기준 완성도 신호${q==null?" (자료 없음)":""}</span></div>
+      <div class="score">${ring(d.priority,"#bdbdbd")}<span>심사 우선순위</span></div>
+    </div>
+    <p class="big">${esc(d.verdict)}</p>
+    <span class="badge">${esc(d.triage)}</span>
+    ${d.declaration_flag?`<div class="flag">⚠ ${esc(d.declaration_flag)}</div>`:""}
+    </div>
+    ${blindOn?`<div class="flag" id="blindnote">🙈 블라인드 모드예요. 아래 근거를 보고 먼저 판정을 저장하면 도구의 점수와 판정이 공개돼요.</div>`:""}
+  </div>
+  ${aiBox}
+  <div class="two">
+    <div class="card"><h2>판단 근거</h2><ul>${sigs}</ul></div>
+    <div class="card"><h2>완성도 체크</h2><ul>${checks||"<li class='small'>항목 없음</li>"}</ul></div>
+  </div>
+  <div class="card"><h2>수집 과정</h2><ul>${steps}</ul>${notes?`<p class="small">참고</p><ul>${notes}</ul>`:""}
+    ${repos?`<p class="small">확인되지 않은 GitHub 후보</p><ul>${repos}</ul>`:""}</div>
+  ${cands?`<div class="card"><h2>다른 앱스토어 앱 후보 <span class="small">(앱 이름으로 검색했을 때)</span></h2>${cands}</div>`:""}
+  ${d.analysis_id?`
+  <div class="card"><h2>심사자 최종 판단 기록</h2>
+    <p class="small">기록이 쌓이면 점수 기준을 보정할 수 있어요.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <select id="lab" style="max-width:200px"><option value="ai">AI로 만든 제출작</option><option value="mixed">혼합</option><option value="human">직접 개발한 제출작</option></select>
+      <input id="note" type="text" placeholder="메모 (선택)" style="flex:1;min-width:180px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
+      <input id="tok" type="password" placeholder="심사자 코드" value="${esc(sessionStorage.getItem("rvtok")||"")}" style="width:170px;padding:11px;border:1.5px solid #cfcfcf;border-radius:10px">
+      <button id="rv" data-id="${d.analysis_id}">저장</button>
+    </div>
+    <p id="rvmsg" class="small"></p></div>`:""}
+  <p class="small">${esc(d.disclaimer||"")}</p>`;
+}
 
-def research_signals(r):
-    """웹 리서치(LLM+검색) 결과. 출처 URL이 있는 '본인 발언'만 강한 증거로 인정."""
-    if not r: return []
-    ms = [m for m in r.get("mentions", []) if m.get("claim")]
-    if r.get("self_declared_ai") is True and ms and ms[0].get("source_url"):
-        return [S("ai", "strong", f"공개 자료에서 AI 도구 사용 언급: {ms[0]['claim'][:90]} (출처: {ms[0]['source_url']})", "research")]
-    if ms: return [S("ai", "medium", f"AI 도구 관련 언급 {len(ms)}건 발견 (제작 방식에 대한 언급인지 출처 확인 필요)", "research")]
-    return []
+const LB = {ai:"AI로 만든 제출작", mixed:"혼합", human:"직접 개발한 제출작"};
+async function loadStats(){
+  const box = $("stats");
+  try{
+    const r = await fetch("/api/stats"); const d = await r.json();
+    if(d.error){ box.textContent = "아직 불러올 수 없어요: " + d.error; return; }
+    if(d.reviews === 0){ box.innerHTML = "아직 심사자 판정이 없어요. 분석 뒤 '심사자 최종 판단 기록'에서 판정을 남기면 여기에 정확도가 쌓여요."; return; }
+    let h = `심사자 판정 <b>${d.reviews}건</b> 중 정확도 계산 대상 <b>${d.evaluated}건</b>, 판단 보류 ${d.hold}건`;
+    if(d.evaluated < 10){ h += `<br>데이터가 적어서 정확도는 아직 참고만 하세요. (${d.evaluated} / 10건)`; }
+    if(d.accuracy != null){
+      h += `<div class="acc">${Math.round(d.accuracy*100)}%</div><span>도구 판정이 심사자 판정과 같았던 비율</span>`;
+      const L = ["ai","mixed","human"];
+      h += `<table class="mx"><tr><th>도구 \\ 심사자</th>${L.map(l=>`<th>${LB[l]}</th>`).join("")}</tr>` +
+           L.map(p=>`<tr><th>${LB[p]}</th>${L.map(l=>`<td>${d.matrix[p][l]}</td>`).join("")}</tr>`).join("") + `</table>`;
+    }
+    const adj = (d.weights||[]).filter(w => w.weight !== 1);
+    if(adj.length){
+      h += `<p><b>판정 데이터로 점수를 바꾼 근거</b> (${d.min_n}건 이상 쌓인 것만)</p><ul>` +
+           adj.map(w => `<li>${esc(w.key.split(":").slice(1).join(":"))} → 점수 ${w.weight}배 <span class="small">(${w.n}건 중 일치율 ${Math.round(w.precision*100)}%)</span></li>`).join("") + `</ul>`;
+    } else {
+      h += `<p class="small">같은 근거가 ${d.min_n}건 이상 쌓이기 전까지는 점수를 바꾸지 않아요.</p>`;
+    }
+    box.innerHTML = h;
+  }catch(e){ box.textContent = "정확도를 불러오지 못했어요."; }
+}
+loadStats();
 
+$("go").addEventListener("click", () => analyze());
+$("q").addEventListener("keydown", e => { if(e.key==="Enter") analyze(); });
+$("out").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.id === "rv"){
+    b.disabled = true;
+    try{
+      sessionStorage.setItem("rvtok", $("tok").value);
+      const r = await fetch("/api/review", {method:"POST", headers:{"Content-Type":"application/json","x-reviewer-token":$("tok").value},
+        body:JSON.stringify({analysis_id:Number(b.dataset.id), reviewer_label:$("lab").value, note:$("note").value})});
+      const j = await r.json();
+      $("rvmsg").textContent = j.ok ? "저장했어요. 정확도에 반영돼요." : ("저장 실패: " + (j.error || "입력값을 확인해 주세요"));
+      if(j.ok){ loadStats(); const bb=$("blindbox"); if(bb) bb.style.display=""; const ab=$("aibox"); if(ab) ab.style.display=""; const bn=$("blindnote"); if(bn) bn.remove(); }
+    }catch(err){ $("rvmsg").textContent = "저장 실패: " + err.message; }
+    b.disabled = false;
+  } else if(b.dataset.id){ analyze(Number(b.dataset.id)); }
+});
 
-# ---------- 심사자 판정으로 점수 보정 / 정확도 계산 ----------
-MIN_N = 10        # 한 종류의 근거가 이만큼 이상 판정과 비교돼야 점수를 바꾼다
-PRIOR_N = 5       # 데이터가 적을 때 '반반(0.5)'쪽으로 당기는 힘
-
-def _hit(side, label):
-    """근거의 방향과 심사자 판정이 얼마나 맞는지 (1=일치, 0.5=혼합, 0=반대)"""
-    if label == "mixed": return 0.5
-    return 1.0 if label == side else 0.0
-
-def compute_weights(rows):
-    """rows: [{"label": "ai|human|mixed", "signals": [...]}]  ->  {근거 키: {n, precision, weight}}
-    근거가 가리킨 방향이 심사자 판정과 자주 맞으면 점수를 최대 1.5배, 자주 틀리면 최소 0.5배로 바꾼다."""
-    acc = {}
-    for r in rows:
-        seen = set()
-        for sg in r.get("signals") or []:
-            k = sig_key(sg)
-            if k in seen: continue            # 한 분석에서 같은 근거는 한 번만 센다
-            seen.add(k)
-            a = acc.setdefault(k, {"n": 0, "sum": 0.0})
-            a["n"] += 1; a["sum"] += _hit(sg["side"], r["label"])
-    out = {}
-    for k, a in acc.items():
-        p = (a["sum"] + PRIOR_N * 0.5) / (a["n"] + PRIOR_N)       # 적은 데이터는 0.5로 당긴 값
-        wt = round(max(0.5, min(1.5, 0.5 + p)), 2) if a["n"] >= MIN_N else 1.0
-        out[k] = {"n": a["n"], "precision": round(a["sum"] / a["n"], 2), "weight": wt}
-    return out
-
-def predicted_class(ai_score):
-    return "ai" if ai_score >= 70 else "mixed" if ai_score >= 40 else "human"
-
-def accuracy_report(rows):
-    """도구 판정(AI 점수 구간)과 심사자 판정을 비교. '판단 보류'는 정확도에서 뺀다."""
-    labels = ("ai", "mixed", "human")
-    matrix = {p: {l: 0 for l in labels} for p in labels}
-    hold = used = right = 0
-    for r in rows:
-        if str(r.get("verdict") or "").startswith("판단 보류"): hold += 1; continue
-        if r.get("ai_score") is None: continue
-        p = predicted_class(r["ai_score"]); matrix[p][r["label"]] += 1
-        used += 1; right += (p == r["label"])
-    return {"reviews": len(rows), "evaluated": used, "hold": hold,
-            "accuracy": round(right / used, 3) if used else None, "matrix": matrix}
+// ===== 일괄 분석 (서버가 최대 10개를 동시에 처리) =====
+const BMAX = 10;
+let batchRows = [];
+function drawBatch(){
+  $("bout").innerHTML = `<table class="mx" style="width:100%"><tr><th>입력</th><th>찾은 대상</th><th>AI 가능성</th><th>완성도</th><th>우선순위</th><th>판정</th><th></th></tr>` +
+    batchRows.map((r,i) => {
+      const d = r.data;
+      if(!d || d.error) return `<tr><td>${esc(r.query)}</td><td colspan="6" class="small">실패: ${esc(d ? d.error : "")}</td></tr>`;
+      return `<tr><td>${esc(r.query)}</td><td>${esc(d.name)}</td><td>${esc(d.ai_score)}</td><td>${d.quality_score==null?"-":esc(d.quality_score)}</td><td><b>${esc(d.priority)}</b></td><td>${esc(d.triage)}</td><td><button class="ghost" data-bi="${i}">상세</button></td></tr>`;
+    }).join("") + `</table>`;
+}
+$("bgo").addEventListener("click", async () => {
+  const lines = [...new Set($("bq").value.split(/[\s,，、;]+/).map(x=>x.trim()).filter(Boolean))];
+  if(!lines.length){ $("bq").focus(); return; }
+  if(lines.length > BMAX){ $("bmsg").textContent = `한 번에 ${BMAX}개까지만 가능해요. (지금 ${lines.length}개)`; return; }
+  $("bgo").disabled = true;
+  $("bout").innerHTML = "";
+  $("bmsg").textContent = `${lines.length}개 분석 중… 최대 1분 정도 걸려요. 탭을 닫지 마세요.`;
+  try{
+    const res = await fetch("/api/batch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({queries:lines})});
+    const txt = await res.text();
+    let j; try{ j = JSON.parse(txt); }catch(_){ j = {error:`서버 응답 오류(${res.status}). 시간 초과일 수 있어요. 개수를 줄여 다시 시도해 보세요.`}; }
+    if(j.error){ $("bmsg").textContent = j.error; }
+    else{
+      batchRows = j.items;
+      drawBatch();
+      $("bmsg").textContent = `${j.items.length}개 완료 · 우선순위 높은 순으로 정렬했어요`;
+    }
+  }catch(e){ $("bmsg").textContent = "요청에 실패했어요: " + e.message; }
+  $("bgo").disabled = false;
+});
+$("bq").addEventListener("keydown", e => { if(e.key==="Enter") $("bgo").click(); });
+$("bout").addEventListener("click", e => {
+  const b = e.target.closest("button[data-bi]"); if(!b) return;
+  const r = batchRows[Number(b.dataset.bi)];
+  if(r && r.data){ render(r.data); $("out").scrollIntoView({behavior:"smooth"}); }
+});
+</script>
+</body>
+</html>
