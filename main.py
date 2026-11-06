@@ -53,7 +53,9 @@ if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
         traceback.print_exc()
 
 # 앱 제출 기능 저장소 (같은 Supabase 연결을 사용. 연결이 없으면 제출 기능만 503)
+# main.py의 56번째 줄
 db = ST.SupabaseStore(sb) if sb else None
+
 
 def reviewer_denied(x_reviewer_token):
     """REVIEW_TOKEN 확인. 통과하면 None, 막히면 오류 응답을 돌려준다."""
