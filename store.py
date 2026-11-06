@@ -1,58 +1,192 @@
-"""APP TRUST AI 스토어 검색.
+"""APP TRUST AI: 스토어 검색 및 Supabase 제출 저장소.
 
-Apple:
-- 기존 collect.py의 HTTP 요청 함수를 재사용한다.
-- iTunes Search API에서 앱 후보를 가져온다.
-- 검색만으로 앱을 확정하거나 분석하지 않는다.
-- 사용자가 선택할 수 있도록 후보 목록을 반환한다.
-
-Google Play:
-- 현재 자동 이름 검색과 앱 설명 수집은 제공하지 않는다.
-- 사용자가 입력한 Play URL 또는 패키지명만 확인한다.
+Google Play는 URL/패키지 형식만 확인하며 등록 여부를 검증하지 않는다.
 """
 
 import difflib
+import json
 import re
 import time
+from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import collect
 
 
-# 검색 API에서 가져올 최대 후보 수
 SEARCH_LIMIT = 50
-
-# 정상 검색 결과를 저장하는 시간
 CACHE_TTL = 300
-
-# 메모리 캐시 최대 검색어 수
 CACHE_MAX = 200
-
 _CACHE = {}
 
 PLAY_NOTICE = (
     "Google Play 자동 이름 검색은 현재 지원하지 않습니다. "
-    "Play 스토어 주소나 패키지명을 입력하면 "
-    "제출 양식에 주소를 채울 수 있습니다. "
-    "앱 이름·개발자·설명은 직접 확인해 입력해 주세요."
+    "Play 스토어 주소나 패키지명을 입력하고 앱 정보를 직접 확인해 주세요."
 )
 
 
+def now_iso():
+    """현재 시간을 UTC 기준 문자열로 반환한다."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+class SupabaseStore:
+    """main.py와 submissions.py가 사용하는 DB 접근 기능.
+
+    생성 시 네트워크 요청을 하지 않는다.
+
+    submission_events.detail의 기존 text 컬럼에는
+    JSON 문자열로 저장하고, 읽을 때 복원한다.
+    json/jsonb 컬럼에서 dict로 반환되는 경우도 허용한다.
+    """
+
+    def __init__(self, client):
+        if client is None:
+            raise ValueError("Supabase 연결이 필요합니다.")
+        self.client = client
+
+    @staticmethod
+    def _rows(response):
+        return response.data or []
+
+    @classmethod
+    def _one(cls, response):
+        rows = cls._rows(response)
+        return rows[0] if rows else None
+
+    def create_submission(self, row):
+        result = self._one(
+            self.client.table("submissions")
+            .insert(row)
+            .execute()
+        )
+        if result is None:
+            raise RuntimeError("제출 저장 결과가 비어 있습니다.")
+        return result
+
+    def get_submission(self, sid):
+        return self._one(
+            self.client.table("submissions")
+            .select("*")
+            .eq("id", sid)
+            .limit(1)
+            .execute()
+        )
+
+    def list_submissions(self, status=None):
+        query = self.client.table("submissions").select("*")
+
+        if status:
+            query = query.eq("status", status)
+
+        return self._rows(
+            query.order("id", desc=True)
+            .limit(200)
+            .execute()
+        )
+
+    def update_submission(self, sid, values):
+        return self._one(
+            self.client.table("submissions")
+            .update(values)
+            .eq("id", sid)
+            .execute()
+        )
+
+    def create_revision(self, row):
+        result = self._one(
+            self.client.table("revision_requests")
+            .insert(row)
+            .execute()
+        )
+        if result is None:
+            raise RuntimeError("보완 요청 저장 결과가 비어 있습니다.")
+        return result
+
+    def get_revision(self, rid):
+        return self._one(
+            self.client.table("revision_requests")
+            .select("*")
+            .eq("id", rid)
+            .limit(1)
+            .execute()
+        )
+
+    def list_revisions(self, sid):
+        return self._rows(
+            self.client.table("revision_requests")
+            .select("*")
+            .eq("submission_id", sid)
+            .order("id")
+            .execute()
+        )
+
+    def update_revision(self, rid, values):
+        return self._one(
+            self.client.table("revision_requests")
+            .update(values)
+            .eq("id", rid)
+            .execute()
+        )
+
+    def add_event(self, sid, kind, detail=None):
+        row = {
+            "submission_id": sid,
+            "kind": kind,
+            "detail": json.dumps(
+                {} if detail is None else detail,
+                ensure_ascii=False,
+            ),
+            "created_at": now_iso(),
+        }
+
+        return self._one(
+            self.client.table("submission_events")
+            .insert(row)
+            .execute()
+        )
+
+    def list_events(self, sid):
+        rows = self._rows(
+            self.client.table("submission_events")
+            .select("*")
+            .eq("submission_id", sid)
+            .order("id")
+            .execute()
+        )
+
+        events = []
+
+        for original in rows:
+            event = dict(original)
+            detail = event.get("detail")
+
+            if isinstance(detail, str):
+                try:
+                    event["detail"] = json.loads(detail)
+                except (ValueError, TypeError):
+                    # 과거의 일반 텍스트도 삭제하지 않고 유지한다.
+                    event["detail"] = detail
+
+            events.append(event)
+
+        return events
+
+
 def _normalize(value):
-    """비교용 문자열. 화면에 표시할 원래 이름은 바꾸지 않는다."""
+    """후보 이름 비교용 문자열."""
     return re.sub(
         r"[\W_]+",
         "",
-        str(value or "").casefold()
+        str(value or "").casefold(),
     )
 
 
 def _card(app, country):
-    """기존 index.html이 사용하는 응답 형식을 유지한다."""
+    """기존 화면에서 사용하는 앱 카드 형식."""
     description = re.sub(
         r"\s+",
         " ",
-        app.get("description") or ""
+        app.get("description") or "",
     ).strip()
 
     return {
@@ -76,46 +210,23 @@ def _card(app, country):
 
 
 def _query_variants(query):
-    """별칭을 추측하지 않고 입력에 포함된 이름만 재사용한다.
-
-    예:
-        Pieceful(피스풀)
-        -> ["Pieceful(피스풀)", "Pieceful"]
-
-    첫 검색에 결과가 있으면 추가 검색은 하지 않는다.
-    """
+    """원문으로 찾지 못하면 괄호 밖 문자열로 재검색한다."""
     variants = [query]
 
-    without_parentheses = re.sub(
+    short = re.sub(
         r"\([^)]*\)|（[^）]*）",
         " ",
-        query
+        query,
     )
+    short = re.sub(r"\s+", " ", short).strip()
 
-    without_parentheses = re.sub(
-        r"\s+",
-        " ",
-        without_parentheses
-    ).strip()
-
-    if (
-        without_parentheses
-        and without_parentheses != query
-    ):
-        variants.append(without_parentheses)
+    if short and short != query:
+        variants.append(short)
 
     return variants
 
 
 def _fetch_apple(query, country):
-    """기존 collect.http_json으로 공식 검색 API를 호출한다.
-
-    None:
-        요청 실패 또는 잘못된 응답
-
-    []:
-        정상 응답이지만 검색 결과가 없음
-    """
     params = urlencode({
         "term": query,
         "entity": "software",
@@ -123,159 +234,130 @@ def _fetch_apple(query, country):
         "limit": SEARCH_LIMIT,
     })
 
-    url = "https://itunes.apple.com/search?" + params
-
     try:
-        data = collect.http_json(url)
-    except Exception:
+        data = collect.http_json(
+            "https://itunes.apple.com/search?" + params
+        )
+    except Exception as exc:
+        print("STORE_SEARCH_FAIL", type(exc).__name__)
         return None
 
     if not isinstance(data, dict):
         return None
 
-    results = data.get("results")
-
-    if not isinstance(results, list):
+    if not isinstance(data.get("results"), list):
         return None
 
-    # 앱 ID가 있는 정상 후보만 사용한다.
     return [
-        item
-        for item in results
-        if isinstance(item, dict)
-        and item.get("trackId")
+        app
+        for app in data["results"]
+        if isinstance(app, dict) and app.get("trackId")
     ]
 
 
 def _rank_key(app, query):
-    """후보를 정렬할 뿐, 특정 앱으로 확정하지 않는다."""
+    """정렬만 수행하며 분석 대상을 자동 확정하지 않는다."""
     target = _normalize(query)
     name = _normalize(app.get("trackName"))
 
-    exact_match = bool(target and name == target)
-    contains = bool(target and target in name)
-
-    similarity = difflib.SequenceMatcher(
-        None,
-        target,
-        name
-    ).ratio()
-
     try:
-        rating_count = int(
-            app.get("userRatingCount") or 0
-        )
+        count = int(app.get("userRatingCount") or 0)
     except (TypeError, ValueError):
-        rating_count = 0
+        count = 0
 
     return (
-        exact_match,
-        contains,
-        similarity,
-        rating_count,
+        bool(target and name == target),
+        bool(target and target in name),
+        difflib.SequenceMatcher(None, target, name).ratio(),
+        count,
     )
 
 
 def search_apple(query):
-    """앱 후보 목록을 반환한다.
+    """Apple 검색 후보를 최대 50개 반환한다.
 
-    검색 순서:
-    1. 입력한 검색어로 한국 스토어 조회
-    2. 결과가 없으면 미국 스토어 조회
-    3. 모두 결과가 없으면 괄호를 제거한 검색어로 재시도
-
-    검색 결과는 존재 여부를 보장하는 전체 앱 목록이 아니다.
-    Apple 검색 API가 반환하는 후보만 표시한다.
+    한국 → 미국 순서로 조회하고,
+    모두 결과가 없으면 괄호를 제거한 검색어로 재시도한다.
+    검색 API가 반환하지 않는 앱까지 발견한다고 보장하지 않는다.
     """
     query = str(query or "").strip()[:100]
 
     if not query:
         return []
 
-    cache_key = query.casefold()
-    cached = _CACHE.get(cache_key)
+    key = query.casefold()
+    cached = _CACHE.get(key)
 
-    if cached:
-        saved_at, cards = cached
+    if cached and time.monotonic() - cached[0] < CACHE_TTL:
+        return [dict(card) for card in cached[1]]
 
-        if time.monotonic() - saved_at < CACHE_TTL:
-            # 호출한 쪽에서 캐시 원본을 변경하지 못하도록 복사한다.
-            return [dict(card) for card in cards]
-
-        _CACHE.pop(cache_key, None)
+    _CACHE.pop(key, None)
 
     results = []
-    result_country = "kr"
-    matched_query = query
+    country = "kr"
+    matched = query
 
     for variant in _query_variants(query):
-        for country in ("kr", "us"):
-            found = _fetch_apple(variant, country)
+        for cc in ("kr", "us"):
+            found = _fetch_apple(variant, cc)
 
             if found:
                 results = found
-                result_country = country
-                matched_query = variant
+                country = cc
+                matched = variant
                 break
 
         if results:
             break
 
-    # 빈 결과나 요청 실패는 캐시에 저장하지 않는다.
+    # 검색 실패·빈 결과는 캐시에 보관하지 않는다.
     if not results:
         return []
 
-    # 같은 앱 ID가 중복되면 한 번만 표시한다.
     unique = {}
 
     for app in results:
-        app_id = str(app["trackId"])
-
-        if app_id not in unique:
-            unique[app_id] = app
+        unique.setdefault(str(app["trackId"]), app)
 
     ordered = sorted(
         unique.values(),
-        key=lambda app: _rank_key(app, matched_query),
-        reverse=True
+        key=lambda app: _rank_key(app, matched),
+        reverse=True,
     )
 
     cards = [
-        _card(app, result_country)
+        _card(app, country)
         for app in ordered[:SEARCH_LIMIT]
     ]
 
-    # 이름이 같은 후보는 기존 화면에서 구분 표시할 수 있다.
-    name_counts = {}
+    counts = {}
 
     for card in cards:
         name = _normalize(card["name"])
-        name_counts[name] = name_counts.get(name, 0) + 1
+        counts[name] = counts.get(name, 0) + 1
 
     for card in cards:
-        name = _normalize(card["name"])
-        card["duplicate"] = name_counts[name] > 1
+        card["duplicate"] = counts[_normalize(card["name"])] > 1
 
     if len(_CACHE) >= CACHE_MAX:
-        oldest_key = min(
+        oldest = min(
             _CACHE,
-            key=lambda key: _CACHE[key][0]
+            key=lambda cache_key: _CACHE[cache_key][0],
         )
-        _CACHE.pop(oldest_key, None)
+        _CACHE.pop(oldest, None)
 
-    _CACHE[cache_key] = (
+    _CACHE[key] = (
         time.monotonic(),
-        [dict(card) for card in cards]
+        [dict(card) for card in cards],
     )
 
     return cards
 
 
 def parse_play(value):
-    """Google Play URL 또는 패키지명을 확인한다.
+    """Play URL 또는 패키지명 형식만 확인한다.
 
-    이 함수는 Google Play에 접속하지 않는다.
-    앱이 실제 등록되어 있는지까지 검증하지는 않는다.
+    Google Play에 접속하지 않으며 실제 등록 여부도 검증하지 않는다.
     """
     value = str(value or "").strip()
     package = None
@@ -283,32 +365,28 @@ def parse_play(value):
     if re.match(r"https?://", value, re.I):
         try:
             parsed = urlparse(value)
+
+            if (parsed.hostname or "").lower() in (
+                "play.google.com",
+                "www.play.google.com",
+            ):
+                package = (
+                    parse_qs(parsed.query).get("id")
+                    or [None]
+                )[0]
+
         except ValueError:
             return None
 
-        hostname = (parsed.hostname or "").lower()
-
-        if hostname in (
-            "play.google.com",
-            "www.play.google.com"
-        ):
-            package = (
-                parse_qs(parsed.query).get("id")
-                or [None]
-            )[0]
-
     elif re.fullmatch(
         r"[A-Za-z][\w]*(\.[\w]+)+",
-        value
+        value,
     ):
         package = value
 
-    if not package:
-        return None
-
-    if not re.fullmatch(
+    if not package or not re.fullmatch(
         r"[A-Za-z][\w]*(\.[\w]+)+",
-        package
+        package,
     ):
         return None
 
@@ -323,7 +401,7 @@ def parse_play(value):
 
 
 def search(query):
-    """기존 main.py와 index.html의 응답 형식을 유지한다."""
+    """既存の検索候補レスポンス形式を維持する。"""
     play = parse_play(query)
 
     return {
